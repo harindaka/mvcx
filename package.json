@@ -1,0 +1,22 @@
+{
+  "name": "mvcx",
+  "version": "0.0.3",
+  "description": "A web based MVC framework for Node JS.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/harindaka/mvcx.git"
+  },
+  "author": "Hemal Harindaka <harindaka@gmail.com> (https://github.com/harindaka)",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/harindaka/mvcx/issues"
+  },
+  "homepage": "https://github.com/harindaka/mvcx#readme",
+  "keywords": [
+    "mvc", "mvc-node", "mvc-express", "node-mvc", "express-mvc", "xmvc", "mvcx"
+  ]
+}
