@@ -56,12 +56,19 @@ module.exports = function(){
 
       self.expressApp = initializeExpress();
 
-      self.logger.info('[mvcx] MVCX intialization completed.');
+      self.logger.info('[mvcx] Intialization completed.');
 
       done(null, appConfig);
     }
     catch(e){
-      console.error('[mvcx] MVCX intialization failed.');
+      var failureMessage = '[mvcx] Intialization failed.';
+      if(self.logger != null){
+        logger.info(failureMessage);
+      }
+      else{
+        console.log(failureMessage);
+      }
+
       done(e, null);
     }
   }
@@ -87,9 +94,9 @@ module.exports = function(){
       { name: 'config', dependency: appConfig, lifestyle: 'singleton' },
       { name: 'logger', dependency: self.logger, lifestyle: 'singleton' },
       { name: 'q', dependency: require('q'), lifestyle: 'singleton' },
-      { name: 'express', dependency: { dep: expressApp }, lifestyle: 'singleton' },
-      { name: 'compression', dependency: { dep: require('compression') }, lifestyle: 'singleton' },
-      { name: 'body-parser', dependency: { dep: require('body-parser') }, lifestyle: 'singleton' },
+      { name: 'express', dependency: expressApp, lifestyle: 'singleton' },
+      { name: 'compression', dependency: require('compression'), lifestyle: 'singleton' },
+      { name: 'body-parser', dependency: require('body-parser'), lifestyle: 'singleton' },
       { name: 'http', dependency: require('http'), lifestyle: 'singleton' },
     ]);
     self.logger.info('[mvcx] Dependency registration completed.');
@@ -99,12 +106,12 @@ module.exports = function(){
 
   function initializeExpress(){
     self.logger.info('[mvcx] Creating express app...');
-    var expressApp = self.dependencyResolver.resolve('express').dep;
+    var expressApp = self.dependencyResolver.resolve('express');
 
     self.logger.info('[mvcx] Registering standard middleware...');
 
     if(self.mvcxConfig.compressionEnabled){
-        var compress = self.dependencyResolver.resolve('compression').dep;
+        var compress = self.dependencyResolver.resolve('compression');
         expressApp.use(compress());
         self.logger.info('[mvcx] Gzip compression is enabled.');
     }
@@ -112,7 +119,7 @@ module.exports = function(){
         self.logger.info('[mvcx] Gzip compression is disabled.');
     }
 
-    var bodyParser  = self.dependencyResolver.resolve('body-parser').dep;
+    var bodyParser  = self.dependencyResolver.resolve('body-parser');
     expressApp.use(bodyParser.urlencoded({ extended: false }));
     expressApp.use(bodyParser.json({limit:(self.mvcxConfig.requestLimitKB)+"kb"}));
 
