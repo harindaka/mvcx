@@ -1,11 +1,11 @@
 module.exports = (function(){
     var MvcxApp = require('./index');
-    var app = new MvcxApp();
 
     var mvcxConfig = {
       clusteringEnabled: false,
       compressionEnabled: true,
       requestLimitKB: 5120,
+      keepAliveTimeoutSeconds: 30,
       loggerAppenders: [
           {
               type: "Console",
@@ -21,12 +21,18 @@ module.exports = (function(){
       ]
     };
 
-    app.start(mvcxConfig, function(err, result){
+    var app = new MvcxApp(mvcxConfig);
+    app.initialize(function(err, result){
       if(err){
         throw err;
       }
       else{
-        console.log('initialization complete');
+        var server = app.createHttpServer();
+        var socketio = app.createWebSocketServer(server);
+
+        server.listen(1234);
+
+        app.logger.info('Tests complete');
       }
     });
 })();

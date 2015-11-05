@@ -1,15 +1,17 @@
-module.exports = function(){
+module.exports = function(mvcxConfig){
   var self = this;
 
-  this.mvcxConfig = null;
+  this.mvcxConfig = initializeConfiguration(mvcxConfig);
   this.expressApp = null;
   this.logger = null;
   this.dependencyResolver = null;
+  this.isInitializationSuccessful = false;
 
-  this.start = function(mvcxConfig, done){
+  this.initialize = function(done){
     try{
       console.log('info: [mvcx] Initializing...');
-      if(mvcxConfig.clusteringEnabled) {
+
+      if(self.mvcxConfig.clusteringEnabled) {
           var cluster = require('cluster');
           var http = require('http');
           var numCPUs = require('os').cpus().length;
@@ -30,12 +32,12 @@ module.exports = function(){
                   console.log('info: [mvcx] Worker process with process id ' + worker.process.pid + ' terminated.');
               });
           } else {
-              return initializeCore(mvcxConfig, done);
+              return initializeCore(done);
           }
       }
       else{
           console.log('info: [mvcx] Clustering is disabled.');
-          return initializeCore(mvcxConfig, done);
+          return initializeCore(done);
       }
     }
     catch(e){
@@ -43,12 +45,57 @@ module.exports = function(){
     }
   };
 
-  function initializeCore(mvcxConfig, done){
+  this.createHttpServer = function() {
+    if(!self.isInitializationSuccessful){
+      throw new Error('[mvcx] Unable create server when mvcx has not been initialized successfully.');
+    }
+
+    self.logger.info('[mvcx] Creating http server...');
+
+    var http = self.dependencyResolver.resolve('http');
+    var server  = http.createServer(self.expressApp);
+
+    self.logger.info('[mvcx] Http server created.');
+
+    server.on('connection', function (socket) {
+        if(self.mvcxConfig.keepAliveTimeoutSeconds > 0) {
+            //logger.debug('Connection opened. Setting keep alive timeout to %s seconds', config.keepAliveTimeoutSeconds);
+            socket.setKeepAlive(true);
+            socket.setTimeout(self.mvcxConfig.keepAliveTimeoutSeconds * 1000, function () {
+                //logger.debug('Connection closed after exceeding keep alive timeout.');
+            });
+        }
+        else{
+            socket.setKeepAlive(false);
+        }
+    });
+
+    if(config.keepAliveTimeoutSeconds > 0) {
+        self.logger.info('[mvcx] Server connection keep-alive timeout set to %s seconds.', self.mvcxConfig.keepAliveTimeoutSeconds);
+    }else {
+        self.logger.info('[mvcx] Server connection keep-alive is disabled.');
+    }
+
+    return server;
+  };
+
+  this.createWebSocketServer = function(server){
+    if(!self.isInitializationSuccessful){
+      throw new Error('[mvcx] Unable create server when mvcx has not been initialized successfully.');
+    }
+
+    self.logger.info('[mvcx] Creating web socket (socket.io) server...');
+
+    var socketio = self.dependencyResolver.resolve('socket.io');
+    return socketio(server);
+
+    self.logger.info('[mvcx] Web socket server created.');
+  }
+
+  function initializeCore(done){
     try
     {
       var appConfig = null;
-
-      self.mvcxConfig = initializeConfiguration(mvcxConfig);
 
       self.logger = initializeLogging(mvcxConfig);
 
@@ -58,12 +105,14 @@ module.exports = function(){
 
       self.logger.info('[mvcx] Intialization completed.');
 
+      self.isInitializationSuccessful = true;
+
       done(null, appConfig);
     }
     catch(e){
       var failureMessage = '[mvcx] Intialization failed.';
       if(self.logger != null){
-        logger.info(failureMessage);
+        self.logger.info(failureMessage);
       }
       else{
         console.log(failureMessage);
@@ -98,6 +147,7 @@ module.exports = function(){
       { name: 'compression', dependency: require('compression'), lifestyle: 'singleton' },
       { name: 'body-parser', dependency: require('body-parser'), lifestyle: 'singleton' },
       { name: 'http', dependency: require('http'), lifestyle: 'singleton' },
+      { name: 'socket.io', dependency: require('socket.io'), lifestyle: 'singleton' }
     ]);
     self.logger.info('[mvcx] Dependency registration completed.');
 
