@@ -42,7 +42,9 @@ module.exports = function(){
     {
       var appConfig = null;
 
-      configureLogging(mvcxConfig);
+      initializeLogging(mvcxConfig);
+      var iocContainer = initializeIoc(mvcxConfig, appConfig, logger);
+
       done(null, appConfig);
     }
     catch(e){
@@ -50,7 +52,19 @@ module.exports = function(){
     }
   }
 
-  function configureLogging(mvcxConfig){
+  function initializeIoc(mvcxConfig, appConfig, logger){
+    var dependencyResolver = mvcxConfig.dependencyResolver;
+
+    var intravenous = require('intravenous');
+    var container = intravenous.create();
+    container.register('config', appConfig, 'singleton');
+    container.register('logger', logger, 'singleton');
+
+    logger.info('[mvcx] Registering dependencies...');
+
+  }
+
+  function initializeLogging(mvcxConfig){
     var logger;
     var environmentDescriptor;
     try{
