@@ -70,7 +70,7 @@ module.exports = function(mvcxConfig){
         }
     });
 
-    if(config.keepAliveTimeoutSeconds > 0) {
+    if(self.mvcxConfig.keepAliveTimeoutSeconds > 0) {
         self.logger.info('[mvcx] Server connection keep-alive timeout set to %s seconds.', self.mvcxConfig.keepAliveTimeoutSeconds);
     }else {
         self.logger.info('[mvcx] Server connection keep-alive is disabled.');
