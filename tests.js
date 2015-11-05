@@ -4,6 +4,8 @@ module.exports = (function(){
 
     var mvcxConfig = {
       clusteringEnabled: false,
+      compressionEnabled: true,
+      requestLimitKB: 5120,
       loggerAppenders: [
           {
               type: "Console",

@@ -1,4 +1,10 @@
 module.exports = function(){
+  var self = this;
+
+  this.mvcxConfig = null;
+  this.expressApp = null;
+  this.logger = null;
+  this.dependencyResolver = null;
 
   this.start = function(mvcxConfig, done){
     try{
@@ -42,65 +48,116 @@ module.exports = function(){
     {
       var appConfig = null;
 
-      initializeLogging(mvcxConfig);
-      var iocContainer = initializeIoc(mvcxConfig, appConfig, logger);
+      self.mvcxConfig = initializeConfiguration(mvcxConfig);
+
+      self.logger = initializeLogging(mvcxConfig);
+
+      self.dependencyResolver = initializeIoc(mvcxConfig, appConfig);
+
+      self.expressApp = initializeExpress();
+
+      self.logger.info('[mvcx] MVCX intialization completed.');
 
       done(null, appConfig);
     }
     catch(e){
+      console.error('[mvcx] MVCX intialization failed.');
       done(e, null);
     }
   }
 
-  function initializeIoc(mvcxConfig, appConfig, logger){
-    var dependencyResolver = mvcxConfig.dependencyResolver;
+  function initializeConfiguration(mvcxConfig){
+    if(typeof (mvcxConfig.dependencyResolver) === 'undefined' || mvcxConfig.dependencyResolver == null){
+      mvcxConfig.dependencyResolver = require('./DependencyResolver');
+    }
 
-    var intravenous = require('intravenous');
-    var container = intravenous.create();
-    container.register('config', appConfig, 'singleton');
-    container.register('logger', logger, 'singleton');
-
-    logger.info('[mvcx] Registering dependencies...');
-
+    return mvcxConfig;
   }
 
-  function initializeLogging(mvcxConfig){
+  function initializeIoc(appConfig){
+    var DependencyResolverClass = self.mvcxConfig.dependencyResolver;
+    var dependencyResolver = new DependencyResolverClass();
+
+    self.logger.info('[mvcx] Registering dependencies...');
+
+    var express = require('express');
+    var expressApp = express();
+
+    dependencyResolver.compose([
+      { name: 'config', dependency: appConfig, lifestyle: 'singleton' },
+      { name: 'logger', dependency: self.logger, lifestyle: 'singleton' },
+      { name: 'q', dependency: require('q'), lifestyle: 'singleton' },
+      { name: 'express', dependency: { dep: expressApp }, lifestyle: 'singleton' },
+      { name: 'compression', dependency: { dep: require('compression') }, lifestyle: 'singleton' },
+      { name: 'body-parser', dependency: { dep: require('body-parser') }, lifestyle: 'singleton' },
+      { name: 'http', dependency: require('http'), lifestyle: 'singleton' },
+    ]);
+    self.logger.info('[mvcx] Dependency registration completed.');
+
+    return dependencyResolver;
+  }
+
+  function initializeExpress(){
+    self.logger.info('[mvcx] Creating express app...');
+    var expressApp = self.dependencyResolver.resolve('express').dep;
+
+    self.logger.info('[mvcx] Registering standard middleware...');
+
+    if(self.mvcxConfig.compressionEnabled){
+        var compress = self.dependencyResolver.resolve('compression').dep;
+        expressApp.use(compress());
+        self.logger.info('[mvcx] Gzip compression is enabled.');
+    }
+    else{
+        self.logger.info('[mvcx] Gzip compression is disabled.');
+    }
+
+    var bodyParser  = self.dependencyResolver.resolve('body-parser').dep;
+    expressApp.use(bodyParser.urlencoded({ extended: false }));
+    expressApp.use(bodyParser.json({limit:(self.mvcxConfig.requestLimitKB)+"kb"}));
+
+    self.logger.info('[mvcx] Standard middleware registration completed.');
+
+    //Middleware
+
+    //Route Manager
+
+    return expressApp;
+  }
+
+  function initializeLogging(){
     var logger;
-    var environmentDescriptor;
-    try{
-        var winston = require('winston');
-        winston.emitErrs = true;
 
-        var winstonTransports = [];
-        if(mvcxConfig.loggerAppenders && mvcxConfig.loggerAppenders.length > 0){
-            for(var i=0; i < mvcxConfig.loggerAppenders.length; i++){
-                var appender = mvcxConfig.loggerAppenders[i];
-                winstonTransports.push(new winston.transports[appender.type](appender.options));
-            }
+    var winston = require('winston');
+    winston.emitErrs = true;
+
+    var winstonTransports = [];
+    if(self.mvcxConfig.loggerAppenders && self.mvcxConfig.loggerAppenders.length > 0){
+        for(var i=0; i < self.mvcxConfig.loggerAppenders.length; i++){
+            var appender = self.mvcxConfig.loggerAppenders[i];
+            winstonTransports.push(new winston.transports[appender.type](appender.options));
         }
-        else{
-            winstonTransports.push(new winston.transports.Console({
-                level: 'silly',
-                handleExceptions: true,
-                json: false,
-                colorize: true
-            }));
-        }
-
-        logger = new winston.Logger({
-            transports: winstonTransports,
-            exitOnError: false
-        });
-
-        logger.info('[mvcx] Overriding Console.log...');
-
-        console.log = logger.debug;
-
-        logger.info('[mvcx] Logger initialized.');
     }
-    catch(e){
-        console.log(e);
-        throw e;
+    else{
+        winstonTransports.push(new winston.transports.Console({
+            level: 'silly',
+            handleExceptions: true,
+            json: false,
+            colorize: true
+        }));
     }
+
+    logger = new winston.Logger({
+        transports: winstonTransports,
+        exitOnError: false
+    });
+
+    logger.info('[mvcx] Overriding Console.log...');
+
+    console.log = logger.debug;
+
+    logger.info('[mvcx] Logger initialized.');
+
+    return logger;
   }
 };

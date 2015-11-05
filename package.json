@@ -26,7 +26,11 @@
     "mvcx"
   ],
   "dependencies": {
+    "body-parser": "^1.14.1",
+    "compression": "^1.6.0",
+    "express": "^4.13.3",
     "intravenous": "^0.1.4-beta",
+    "q": "^1.4.1",
     "winston": "^2.1.0"
   }
 }
