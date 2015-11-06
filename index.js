@@ -2,6 +2,7 @@ module.exports = function(mvcxConfig){
   var self = this;
 
   this.mvcxConfig = initializeConfiguration(mvcxConfig);
+  console.log(mvcxConfig);
   this.expressApp = null;
   this.logger = null;
   this.dependencyResolver = null;
@@ -123,11 +124,45 @@ module.exports = function(mvcxConfig){
   }
 
   function initializeConfiguration(mvcxConfig){
-    if(typeof (mvcxConfig.dependencyResolver) === 'undefined' || mvcxConfig.dependencyResolver == null){
-      mvcxConfig.dependencyResolver = require('./DependencyResolver');
+    if(isEmpty(mvcxConfig)){
+      mvcxConfig = {};
     }
 
+    var hooks = hydrateConfigPath(mvcxConfig, 'hooks');
+
+    var DependencyResolver = require('./DependencyResolver');
+    var resolver = new DependencyResolver();
+
+    hydrateConfigPath(hooks, 'ioc.register', resolver.register);
+    hydrateConfigPath(hooks, 'ioc.resolve', resolver.resolve);
+    hydrateConfigPath(hooks, 'ioc.compose', function(register) {});
+
     return mvcxConfig;
+  }
+
+  function isEmpty(val){
+    return (typeof (val) === 'undefined' || val == null);
+  }
+
+  function hydrateConfigPath(config, path, value){
+    var props = path.split('.');
+
+    var lastIndex = props.length - 1;
+    for(var i=0; i < props.length; i++){
+      var prop = props[i];
+      if(i = lastIndex){
+        if(isEmpty(config[prop])){
+          config[prop] = value;
+        }
+      }
+      else if(isEmpty(config[prop])){
+          config[prop] = {};
+      }
+
+      config = config[prop];
+    }
+
+    return config;
   }
 
   function initializeIoc(appConfig){
@@ -138,17 +173,18 @@ module.exports = function(mvcxConfig){
 
     var express = require('express');
     var expressApp = express();
+    DependencyResolver.register({ name: 'express', dependency: express, lifestyle: 'singleton' }),
+    DependencyResolver.register({ name: 'express-app', dependency: expressApp, lifestyle: 'singleton' }),
+    DependencyResolver.register({ name: 'config', dependency: appConfig, lifestyle: 'singleton' }),
+    DependencyResolver.register({ name: 'logger', dependency: self.logger, lifestyle: 'singleton' }),
+    DependencyResolver.register({ name: 'q', dependency: require('q'), lifestyle: 'singleton' }),
+    DependencyResolver.register({ name: 'compression', dependency: require('compression'), lifestyle: 'singleton' }),
+    DependencyResolver.register({ name: 'body-parser', dependency: require('body-parser'), lifestyle: 'singleton' }),
+    DependencyResolver.register({ name: 'http', dependency: require('http'), lifestyle: 'singleton' }),
+    DependencyResolver.register({ name: 'socket.io', dependency: require('socket.io'), lifestyle: 'singleton' })
 
-    dependencyResolver.compose([
-      { name: 'config', dependency: appConfig, lifestyle: 'singleton' },
-      { name: 'logger', dependency: self.logger, lifestyle: 'singleton' },
-      { name: 'q', dependency: require('q'), lifestyle: 'singleton' },
-      { name: 'express', dependency: expressApp, lifestyle: 'singleton' },
-      { name: 'compression', dependency: require('compression'), lifestyle: 'singleton' },
-      { name: 'body-parser', dependency: require('body-parser'), lifestyle: 'singleton' },
-      { name: 'http', dependency: require('http'), lifestyle: 'singleton' },
-      { name: 'socket.io', dependency: require('socket.io'), lifestyle: 'singleton' }
-    ]);
+    self.mvcxConfig.hooks.ioc.compose(dependencyResolver.register);
+
     self.logger.info('[mvcx] Dependency registration completed.');
 
     return dependencyResolver;
