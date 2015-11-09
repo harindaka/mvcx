@@ -1,4 +1,4 @@
-module.exports = function() {
+function IocHook(){
   var self = this;
 
   var intravenous = require('intravenous');
@@ -26,4 +26,6 @@ module.exports = function() {
       return dependency.__intravenousDependency;
     }
   };
-};
+}
+
+module.exports = new IocHook();

@@ -1,7 +1,8 @@
-module.exports = function(mvcxConfig){
+module.exports = function(configMetadata){
   var self = this;
 
-  this.mvcxConfig = initializeConfiguration(mvcxConfig);
+  this.appConfig = mergeConfig(configMetadata);
+  this.mvcxConfig = self.appConfig.mvcx;
   console.log(mvcxConfig);
   this.expressApp = null;
   this.logger = null;
@@ -123,46 +124,49 @@ module.exports = function(mvcxConfig){
     }
   }
 
-  function initializeConfiguration(mvcxConfig){
-    if(isEmpty(mvcxConfig)){
-      mvcxConfig = {};
+  function mergeConfig(configMetadata) {
+    var environment;
+    var config;
+    console.log('info: [mvcx] Initializing configuration...');
+
+    var baseConfig = configMetadata.baseConfig;
+    if (typeof(baseConfig) === 'undefined' || baseConfig == null) {
+        baseConfig = {};
     }
 
-    var hooks = hydrateConfigPath(mvcxConfig, 'hooks');
+    var merge = require('merge');
 
-    var DependencyResolver = require('./DependencyResolver');
-    var resolver = new DependencyResolver();
+    console.log('info: [mvcx] Checking environment configuration indicator...');
+    var environment = process.env[configMetadata.environmentIndicatorVariable];
+    if (!isEmpty(environment)) {
+        console.log('info: [mvcx] Loading configuration override for ' + environment + ' environment.');
+        var overrideConfig = require(configMetadata.environments[environment]);
+        if (!(overrideConfig)) {
+            throw new Error('[mvcx] The ' + env + ' environment configuration override is missing. Exiting...');
+        }
 
-    hydrateConfigPath(hooks, 'ioc.register', resolver.register);
-    hydrateConfigPath(hooks, 'ioc.resolve', resolver.resolve);
-    hydrateConfigPath(hooks, 'ioc.compose', function(register) {});
+        console.log('info: [mvcx] Merging configuration override for ' + environment + ' environment...');
+        config = merge.recursive(true, baseConfig, overrideConfig);
+    }
+    else {
+        console.log('info: [mvcx] No environment indicator found. Continuing with the base configuration...');
+        config = baseConfig;
+    }
 
-    return mvcxConfig;
+    var overriddenMvcxConfig = config.mvcx;
+    if(isEmpty(overriddenMvcxConfig)){
+      overriddenMvcxConfig = {};
+    }
+
+    console.log('info: [mvcx] Merging mvcx default configuration with specified overrides from the application configuration...');
+    config.mvcx = merge.recursive(true, require('./DefaultConfig'), overriddenMvcxConfig);
+
+    console.log('info: [mvcx] Configuration initialized.');
+    return config;
   }
 
   function isEmpty(val){
     return (typeof (val) === 'undefined' || val == null);
-  }
-
-  function hydrateConfigPath(config, path, value){
-    var props = path.split('.');
-
-    var lastIndex = props.length - 1;
-    for(var i=0; i < props.length; i++){
-      var prop = props[i];
-      if(i = lastIndex){
-        if(isEmpty(config[prop])){
-          config[prop] = value;
-        }
-      }
-      else if(isEmpty(config[prop])){
-          config[prop] = {};
-      }
-
-      config = config[prop];
-    }
-
-    return config;
   }
 
   function initializeIoc(appConfig){
@@ -175,13 +179,14 @@ module.exports = function(mvcxConfig){
     var expressApp = express();
     DependencyResolver.register({ name: 'express', dependency: express, lifestyle: 'singleton' }),
     DependencyResolver.register({ name: 'express-app', dependency: expressApp, lifestyle: 'singleton' }),
-    DependencyResolver.register({ name: 'config', dependency: appConfig, lifestyle: 'singleton' }),
+    DependencyResolver.register({ name: 'config', dependency: self.appConfig, lifestyle: 'singleton' }),
     DependencyResolver.register({ name: 'logger', dependency: self.logger, lifestyle: 'singleton' }),
     DependencyResolver.register({ name: 'q', dependency: require('q'), lifestyle: 'singleton' }),
     DependencyResolver.register({ name: 'compression', dependency: require('compression'), lifestyle: 'singleton' }),
     DependencyResolver.register({ name: 'body-parser', dependency: require('body-parser'), lifestyle: 'singleton' }),
     DependencyResolver.register({ name: 'http', dependency: require('http'), lifestyle: 'singleton' }),
     DependencyResolver.register({ name: 'socket.io', dependency: require('socket.io'), lifestyle: 'singleton' })
+    DependencyResolver.register({ name: 'merge', dependency: require('merge'), lifestyle: 'singleton' })
 
     self.mvcxConfig.hooks.ioc.compose(dependencyResolver.register);
 
