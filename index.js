@@ -137,7 +137,11 @@ module.exports = function(configMetadata){
     var merge = require('merge');
 
     console.log('info: [mvcx] Checking environment configuration indicator...');
-    var environment = process.env[configMetadata.environmentIndicatorVariable];
+    var environment = null;
+    if(!isEmpty(configMetadata.environmentIndicatorVariable)){
+      environment = process.env[configMetadata.environmentIndicatorVariable];
+    }
+
     if (!isEmpty(environment)) {
         console.log('info: [mvcx] Loading configuration override for ' + environment + ' environment.');
         var overrideConfig = require(configMetadata.environments[environment]);

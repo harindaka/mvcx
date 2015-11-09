@@ -1,27 +1,17 @@
 module.exports = (function(){
     var MvcxApp = require('./index');
 
-    var mvcxConfig = {
-      clusteringEnabled: false,
-      compressionEnabled: true,
-      requestLimitKB: 5120,
-      keepAliveTimeoutSeconds: 30,
-      loggerAppenders: [
-          {
-              type: "Console",
-              options: {
-                  level: "silly",
-                  timestamp: true,
-                  handleExceptions: false,
-                  json: false,
-                  colorize: true,
-                  prettyPrint: true
-              }
-          }
-      ]
+    var configMetadata = {
+      baseConfig: require('./Config'),
+      environmentIndicatorVariable: 'MY_APP_ENV',
+      environments: {
+        dev: './Config.dev',
+        qa: './Config.qa',
+        prod: './Config.prod'
+      }
     };
 
-    var app = new MvcxApp(mvcxConfig);
+    var app = new MvcxApp(configMetadata);
     app.initialize(function(err, result){
       if(err){
         throw err;
