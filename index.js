@@ -3,8 +3,6 @@ module.exports = function(configMetadata){
 
   this.appConfig = mergeConfig(configMetadata);
   this.mvcxConfig = self.appConfig.mvcx;
-  console.log(self.mvcxConfig);
-
   this.expressApp = null;
   this.logger = null;
   this.isInitializationSuccessful = false;
@@ -114,7 +112,7 @@ module.exports = function(configMetadata){
     catch(e){
       var failureMessage = '[mvcx] Intialization failed.';
       if(self.logger != null){
-        self.logger.info(failureMessage);
+        self.logger.error(failureMessage);
       }
       else{
         console.log(failureMessage);
@@ -146,7 +144,7 @@ module.exports = function(configMetadata){
         console.log('info: [mvcx] Loading configuration override for ' + environment + ' environment.');
         var overrideConfig = require(configMetadata.environments[environment]);
         if (!(overrideConfig)) {
-            throw new Error('[mvcx] The ' + env + ' environment configuration override is missing. Exiting...');
+            throw new Error('[mvcx] The ' + env + ' environment configuration override is missing.');
         }
 
         console.log('info: [mvcx] Merging configuration override for ' + environment + ' environment...');
