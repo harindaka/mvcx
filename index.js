@@ -3,7 +3,6 @@ module.exports = function(configMetadata){
 
   this.appConfig = mergeConfig(configMetadata);
   this.mvcxConfig = self.appConfig.mvcx;
-  console.log(mvcxConfig);
   this.expressApp = null;
   this.logger = null;
   this.dependencyResolver = null;
@@ -99,9 +98,9 @@ module.exports = function(configMetadata){
     {
       var appConfig = null;
 
-      self.logger = initializeLogging(mvcxConfig);
+      self.logger = initializeLogging();
 
-      self.dependencyResolver = initializeIoc(mvcxConfig, appConfig);
+      self.dependencyResolver = initializeIoc();
 
       self.expressApp = initializeExpress();
 
@@ -109,7 +108,7 @@ module.exports = function(configMetadata){
 
       self.isInitializationSuccessful = true;
 
-      done(null, appConfig);
+      done(null, self.appConfig);
     }
     catch(e){
       var failureMessage = '[mvcx] Intialization failed.';
@@ -173,26 +172,24 @@ module.exports = function(configMetadata){
     return (typeof (val) === 'undefined' || val == null);
   }
 
-  function initializeIoc(appConfig){
-    var DependencyResolverClass = self.mvcxConfig.dependencyResolver;
-    var dependencyResolver = new DependencyResolverClass();
+  function initializeIoc(){
 
     self.logger.info('[mvcx] Registering dependencies...');
 
     var express = require('express');
     var expressApp = express();
-    DependencyResolver.register({ name: 'express', dependency: express, lifestyle: 'singleton' }),
-    DependencyResolver.register({ name: 'express-app', dependency: expressApp, lifestyle: 'singleton' }),
-    DependencyResolver.register({ name: 'config', dependency: self.appConfig, lifestyle: 'singleton' }),
-    DependencyResolver.register({ name: 'logger', dependency: self.logger, lifestyle: 'singleton' }),
-    DependencyResolver.register({ name: 'q', dependency: require('q'), lifestyle: 'singleton' }),
-    DependencyResolver.register({ name: 'compression', dependency: require('compression'), lifestyle: 'singleton' }),
-    DependencyResolver.register({ name: 'body-parser', dependency: require('body-parser'), lifestyle: 'singleton' }),
-    DependencyResolver.register({ name: 'http', dependency: require('http'), lifestyle: 'singleton' }),
-    DependencyResolver.register({ name: 'socket.io', dependency: require('socket.io'), lifestyle: 'singleton' })
-    DependencyResolver.register({ name: 'merge', dependency: require('merge'), lifestyle: 'singleton' })
 
-    self.mvcxConfig.hooks.ioc.compose(dependencyResolver.register);
+    var ioc = self.mvcxConfig.hooks.ioc;
+    ioc.register({ name: 'express', dependency: express, lifestyle: 'singleton' }),
+    ioc.register({ name: 'express-app', dependency: expressApp, lifestyle: 'singleton' }),
+    ioc.register({ name: 'config', dependency: self.appConfig, lifestyle: 'singleton' }),
+    ioc.register({ name: 'logger', dependency: self.logger, lifestyle: 'singleton' }),
+    ioc.register({ name: 'q', dependency: require('q'), lifestyle: 'singleton' }),
+    ioc.register({ name: 'compression', dependency: require('compression'), lifestyle: 'singleton' }),
+    ioc.register({ name: 'body-parser', dependency: require('body-parser'), lifestyle: 'singleton' }),
+    ioc.register({ name: 'http', dependency: require('http'), lifestyle: 'singleton' }),
+    ioc.register({ name: 'socket.io', dependency: require('socket.io'), lifestyle: 'singleton' })
+    ioc.register({ name: 'merge', dependency: require('merge'), lifestyle: 'singleton' })
 
     self.logger.info('[mvcx] Dependency registration completed.');
 

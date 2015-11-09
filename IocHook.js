@@ -28,4 +28,8 @@ function IocHook(){
   };
 }
 
-module.exports = new IocHook();
+var hook = {
+  
+};
+
+module.exports = hook; //new IocHook();

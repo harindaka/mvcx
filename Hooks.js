@@ -1,3 +1,3 @@
 module.exports = {
-  ioc: require('./IocHook');
-}
+  ioc: require('./IocHook')
+};
