@@ -3,9 +3,10 @@ module.exports = function(configMetadata){
 
   this.appConfig = mergeConfig(configMetadata);
   this.mvcxConfig = self.appConfig.mvcx;
+  console.log(self.mvcxConfig);
+
   this.expressApp = null;
   this.logger = null;
-  this.dependencyResolver = null;
   this.isInitializationSuccessful = false;
 
   this.initialize = function(done){
@@ -53,7 +54,7 @@ module.exports = function(configMetadata){
 
     self.logger.info('[mvcx] Creating http server...');
 
-    var http = self.dependencyResolver.resolve('http');
+    var http = self.mvcxConfig.hooks.ioc.resolve('http');
     var server  = http.createServer(self.expressApp);
 
     self.logger.info('[mvcx] Http server created.');
@@ -87,7 +88,7 @@ module.exports = function(configMetadata){
 
     self.logger.info('[mvcx] Creating web socket (socket.io) server...');
 
-    var socketio = self.dependencyResolver.resolve('socket.io');
+    var socketio = self.mvcxConfig.hooks.ioc.resolve('socket.io');
     return socketio(server);
 
     self.logger.info('[mvcx] Web socket server created.');
@@ -100,7 +101,7 @@ module.exports = function(configMetadata){
 
       self.logger = initializeLogging();
 
-      self.dependencyResolver = initializeIoc();
+      initializeIoc();
 
       self.expressApp = initializeExpress();
 
@@ -173,7 +174,6 @@ module.exports = function(configMetadata){
   }
 
   function initializeIoc(){
-
     self.logger.info('[mvcx] Registering dependencies...');
 
     var express = require('express');
@@ -181,7 +181,7 @@ module.exports = function(configMetadata){
 
     var ioc = self.mvcxConfig.hooks.ioc;
     ioc.register({ name: 'express', dependency: express, lifestyle: 'singleton' }),
-    ioc.register({ name: 'express-app', dependency: expressApp, lifestyle: 'singleton' }),
+    ioc.register({ name: 'expressApp', dependency: expressApp, lifestyle: 'singleton' }),
     ioc.register({ name: 'config', dependency: self.appConfig, lifestyle: 'singleton' }),
     ioc.register({ name: 'logger', dependency: self.logger, lifestyle: 'singleton' }),
     ioc.register({ name: 'q', dependency: require('q'), lifestyle: 'singleton' }),
@@ -192,18 +192,16 @@ module.exports = function(configMetadata){
     ioc.register({ name: 'merge', dependency: require('merge'), lifestyle: 'singleton' })
 
     self.logger.info('[mvcx] Dependency registration completed.');
-
-    return dependencyResolver;
   }
 
   function initializeExpress(){
     self.logger.info('[mvcx] Creating express app...');
-    var expressApp = self.dependencyResolver.resolve('express');
+    var expressApp = self.mvcxConfig.hooks.ioc.resolve('expressApp');
 
     self.logger.info('[mvcx] Registering standard middleware...');
 
     if(self.mvcxConfig.compressionEnabled){
-        var compress = self.dependencyResolver.resolve('compression');
+        var compress = self.mvcxConfig.hooks.ioc.resolve('compression');
         expressApp.use(compress());
         self.logger.info('[mvcx] Gzip compression is enabled.');
     }
@@ -211,7 +209,7 @@ module.exports = function(configMetadata){
         self.logger.info('[mvcx] Gzip compression is disabled.');
     }
 
-    var bodyParser  = self.dependencyResolver.resolve('body-parser');
+    var bodyParser  = self.mvcxConfig.hooks.ioc.resolve('body-parser');
     expressApp.use(bodyParser.urlencoded({ extended: false }));
     expressApp.use(bodyParser.json({limit:(self.mvcxConfig.requestLimitKB)+"kb"}));
 

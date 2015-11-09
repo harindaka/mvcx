@@ -28,8 +28,9 @@ function IocHook(){
   };
 }
 
-var hook = {
-  
-};
+var hook = new IocHook();
 
-module.exports = hook; //new IocHook();
+module.exports = {
+  register: hook.register,
+  resolve: hook.resolve
+};
