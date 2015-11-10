@@ -12,13 +12,14 @@ module.exports = (function(){
     };
 
     var app = new MvcxApp(configMetadata);
-    app.initialize().then(function(config){
-      app.logger.info('aaa');
+    app.initialize().then(function(result){
 
       var server = app.createHttpServer();
       var websocket = app.createWebSocketServer(server);
 
-      var iocContainer = config.mvcx.hooks.ioc;
+      var hooks = result.config.mvcx.hooks;
+
+      var iocContainer = hooks.ioc;
       iocContainer.register({ name: 'websocket', dependency: websocket, lifestyle: 'singleton' })
 
       server.listen(1234);

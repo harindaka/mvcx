@@ -35,14 +35,19 @@ module.exports = function(configMetadata){
                 });
             } else {
                 initializeCore();
-                return resolve(self.appConfig);
             }
         }
         else{
             console.log('info: [mvcx] Clustering is disabled.');
             initializeCore();
-            return resolve(self.appConfig);
         }
+
+        var result = {
+          express: self.expressApp,
+          config: self.appConfig
+        };
+
+        return resolve(result);
       }
       catch(e){
         var failureMessage = '[mvcx] Intialization failed.';

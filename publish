@@ -1,0 +1,12 @@
+#!/bin/bash
+set -e
+
+if [ "$1" = "help" ]
+  then
+    echo "desc  : publishes the project to npm"
+    echo "usage : ./publish"
+    echo "eg    : ./publish"
+    exit 0;
+fi
+
+npm publish .
