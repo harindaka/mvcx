@@ -2,6 +2,7 @@ module.exports = function(configMetadata){
   var self = this;
 
   this.q = require('q');
+  this.lazyjs = require('lazy.js');
   this.appConfig = mergeConfig(configMetadata);
   this.mvcxConfig = self.appConfig.mvcx;
   this.expressApp = null;
@@ -63,14 +64,6 @@ module.exports = function(configMetadata){
     });
   };
 
-  this.registerControllerMiddleware = function(){
-    var ModuleLoader = require('./ModuleLoader');
-    var moduleLoader = new ModuleLoader();
-    var path = require('path');
-
-    var controllers = moduleLoader.load(path.resolve(self.mvcxConfig.controllerPath));
-  };
-
   this.createHttpServer = function() {
     if(!self.isInitializationSuccessful){
       throw new Error('[mvcx] Unable create server when mvcx has not been initialized successfully.');
@@ -126,6 +119,8 @@ module.exports = function(configMetadata){
       initializeIoc();
 
       self.expressApp = initializeExpress();
+
+      loadControllers();
 
       self.logger.info('[mvcx] Intialization completed.');
 
@@ -198,7 +193,7 @@ module.exports = function(configMetadata){
     ioc.register({ name: 'http', dependency: require('http'), lifestyle: 'singleton' }),
     ioc.register({ name: 'socket.io', dependency: require('socket.io'), lifestyle: 'singleton' })
     ioc.register({ name: 'merge', dependency: require('merge'), lifestyle: 'singleton' })
-    ioc.register({ name: 'laxyjs', dependency: require('lazyjs'), lifestyle: 'singleton' })
+    ioc.register({ name: 'lazy.js', dependency: require('lazy.js'), lifestyle: 'singleton' })
 
     self.logger.info('[mvcx] Dependency registration completed.');
   }
@@ -223,10 +218,6 @@ module.exports = function(configMetadata){
     expressApp.use(bodyParser.json({limit:(self.mvcxConfig.requestLimitKB)+"kb"}));
 
     self.logger.info('[mvcx] Standard middleware registration completed.');
-
-    //Middleware
-
-    //Route Manager
 
     return expressApp;
   }
@@ -266,4 +257,25 @@ module.exports = function(configMetadata){
 
     return logger;
   }
+
+  function loadControllers(){
+    self.logger.info('[mvcx] Loading controllers...');
+
+    var ModuleLoader = require('./ModuleLoader');
+    var moduleLoader = new ModuleLoader();
+    var path = require('path');
+
+    var controllers = moduleLoader.load(path.resolve(self.mvcxConfig.controllerPath));
+
+    var iocContainer = self.mvcxConfig.hooks.ioc;
+    self.lazyjs(controllers).each(function(controller){
+      iocContainer.register({
+        name: controller.moduleName,
+        dependency: controller,
+        lifestyle: 'perRequest'
+      });
+
+      //registerControllerAction(iocContainer.resolve(controller.moduleName), path, 'get');
+    });
+  };
 };

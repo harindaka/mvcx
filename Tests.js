@@ -20,7 +20,9 @@ module.exports = (function(){
       var hooks = result.config.mvcx.hooks;
 
       var iocContainer = hooks.ioc;
-      iocContainer.register({ name: 'websocket', dependency: websocket, lifestyle: 'singleton' })
+      iocContainer.register({ name: 'websocket', dependency: websocket, lifestyle: 'singleton' });
+
+      var express = result.express;
 
       server.listen(1234);
 

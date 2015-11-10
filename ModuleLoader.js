@@ -1,24 +1,27 @@
 module.exports = function(){
   var self = this;
 
-  this.lazyjs = require('lazyjs');
+  this.moduleExtension = '.js';
+  this.lazyjs = require('lazy.js');
 
   this.load = function (modulePath, commonSuffix){
     var fs = require('fs');
 
-    var regex = '/' + commonSuffix + '\.js$/';
+    var regex = "/" + commonSuffix + "\\" + self.moduleExtension + "$/";
     var filePaths = getFilesInDirectory(modulePath, regex);
 
-    var modules = [];
-    self.lazyjs(filePaths).each(function(path){
-      modules.push({
-        filePath: path
-        fileName: null,
-        moduleName: null,
-        module: require(path)
+    if(filePaths != null){
+      var modules = [];
+      self.lazyjs(filePaths).each(function(filePath){
+        modules.push({
+          filePath: filePath,
+          fileName: path.basename(filePath),
+          moduleName: path.basename(filePath, self.moduleExtension),
+          module: require(path)
+        });
       });
-    });
-
+    }
+    
     return modules;
   }
 
