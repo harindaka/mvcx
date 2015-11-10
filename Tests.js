@@ -12,17 +12,21 @@ module.exports = (function(){
     };
 
     var app = new MvcxApp(configMetadata);
-    app.initialize(function(err, result){
-      if(err){
-        throw err;
-      }
-      else{
-        var server = app.createHttpServer();
-        var socketio = app.createWebSocketServer(server);
+    app.initialize().then(function(config){
+      app.logger.info('aaa');
 
-        server.listen(1234);
+      var server = app.createHttpServer();
+      var websocket = app.createWebSocketServer(server);
 
-        app.logger.info('Tests complete');
-      }
+      var iocContainer = config.mvcx.hooks.ioc;
+      iocContainer.register({ name: 'websocket', dependency: websocket, lifestyle: 'singleton' })
+
+      server.listen(1234);
+
+      app.logger.info('Tests completed.');
+
+    }).catch(function(e){
+      app.logger.info('Tests failed.');
+      app.logger.error(e);
     });
 })();

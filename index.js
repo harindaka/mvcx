@@ -1,48 +1,61 @@
 module.exports = function(configMetadata){
   var self = this;
 
+  this.q = require('q');
   this.appConfig = mergeConfig(configMetadata);
   this.mvcxConfig = self.appConfig.mvcx;
   this.expressApp = null;
   this.logger = null;
   this.isInitializationSuccessful = false;
 
-  this.initialize = function(done){
-    try{
-      console.log('info: [mvcx] Initializing...');
+  this.initialize = function(){
+    return self.q.Promise(function(resolve, reject, notify) {
+      try{
+        console.log('info: [mvcx] Initializing...');
 
-      if(self.mvcxConfig.clusteringEnabled) {
-          var cluster = require('cluster');
-          var http = require('http');
-          var numCPUs = require('os').cpus().length;
-          var appConfig = null;
+        if(self.mvcxConfig.clusteringEnabled) {
+            var cluster = require('cluster');
+            var http = require('http');
+            var numCPUs = require('os').cpus().length;
+            var appConfig = null;
 
-          if (cluster.isMaster) {
-              console.log('info: [mvcx] Clustering for ' + numCPUs + ' CPU cores...');
+            if (cluster.isMaster) {
+                console.log('info: [mvcx] Clustering for ' + numCPUs + ' CPU cores...');
 
-              // Fork workers.
-              for (var i = 0; i < numCPUs; i++) {
-                  console.log('info: [mvcx] Spawning worker ' + (i + 1) + '...');
-                  cluster.fork();
-              }
+                // Fork workers.
+                for (var i = 0; i < numCPUs; i++) {
+                    console.log('info: [mvcx] Spawning worker ' + (i + 1) + '...');
+                    cluster.fork();
+                }
 
-              console.log('info: [mvcx] Clustering intialized with ' + numCPUs + ' worker processes.');
+                console.log('info: [mvcx] Clustering intialized with ' + numCPUs + ' worker processes.');
 
-              cluster.on('exit', function (worker, code, signal) {
-                  console.log('info: [mvcx] Worker process with process id ' + worker.process.pid + ' terminated.');
-              });
-          } else {
-              return initializeCore(done);
-          }
+                cluster.on('exit', function (worker, code, signal) {
+                    console.log('info: [mvcx] Worker process with process id ' + worker.process.pid + ' terminated.');
+                });
+            } else {
+                initializeCore();
+                return resolve(self.appConfig);
+            }
+        }
+        else{
+            console.log('info: [mvcx] Clustering is disabled.');
+            initializeCore();
+            return resolve(self.appConfig);
+        }
       }
-      else{
-          console.log('info: [mvcx] Clustering is disabled.');
-          return initializeCore(done);
+      catch(e){
+        var failureMessage = '[mvcx] Intialization failed.';
+        if(self.logger != null){
+          self.logger.error(failureMessage);
+        }
+        else{
+          console.log(failureMessage);
+        }
+
+        reject(e);
       }
-    }
-    catch(e){
-      done(e, null);
-    }
+    });
   };
 
   this.createHttpServer = function() {
@@ -92,9 +105,7 @@ module.exports = function(configMetadata){
     self.logger.info('[mvcx] Web socket server created.');
   }
 
-  function initializeCore(done){
-    try
-    {
+  function initializeCore(){
       var appConfig = null;
 
       self.logger = initializeLogging();
@@ -106,20 +117,6 @@ module.exports = function(configMetadata){
       self.logger.info('[mvcx] Intialization completed.');
 
       self.isInitializationSuccessful = true;
-
-      done(null, self.appConfig);
-    }
-    catch(e){
-      var failureMessage = '[mvcx] Intialization failed.';
-      if(self.logger != null){
-        self.logger.error(failureMessage);
-      }
-      else{
-        console.log(failureMessage);
-      }
-
-      done(e, null);
-    }
   }
 
   function mergeConfig(configMetadata) {
@@ -182,7 +179,7 @@ module.exports = function(configMetadata){
     ioc.register({ name: 'expressApp', dependency: expressApp, lifestyle: 'singleton' }),
     ioc.register({ name: 'config', dependency: self.appConfig, lifestyle: 'singleton' }),
     ioc.register({ name: 'logger', dependency: self.logger, lifestyle: 'singleton' }),
-    ioc.register({ name: 'q', dependency: require('q'), lifestyle: 'singleton' }),
+    ioc.register({ name: 'q', dependency: self.q, lifestyle: 'singleton' }),
     ioc.register({ name: 'compression', dependency: require('compression'), lifestyle: 'singleton' }),
     ioc.register({ name: 'body-parser', dependency: require('body-parser'), lifestyle: 'singleton' }),
     ioc.register({ name: 'http', dependency: require('http'), lifestyle: 'singleton' }),
