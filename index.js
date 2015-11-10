@@ -63,6 +63,14 @@ module.exports = function(configMetadata){
     });
   };
 
+  this.registerControllerMiddleware = function(){
+    var ModuleLoader = require('./ModuleLoader');
+    var moduleLoader = new ModuleLoader();
+    var path = require('path');
+
+    var controllers = moduleLoader.load(path.resolve(self.mvcxConfig.controllerPath));
+  };
+
   this.createHttpServer = function() {
     if(!self.isInitializationSuccessful){
       throw new Error('[mvcx] Unable create server when mvcx has not been initialized successfully.');
@@ -190,6 +198,7 @@ module.exports = function(configMetadata){
     ioc.register({ name: 'http', dependency: require('http'), lifestyle: 'singleton' }),
     ioc.register({ name: 'socket.io', dependency: require('socket.io'), lifestyle: 'singleton' })
     ioc.register({ name: 'merge', dependency: require('merge'), lifestyle: 'singleton' })
+    ioc.register({ name: 'laxyjs', dependency: require('lazyjs'), lifestyle: 'singleton' })
 
     self.logger.info('[mvcx] Dependency registration completed.');
   }

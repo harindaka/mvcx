@@ -3,6 +3,9 @@ module.exports = {
   compressionEnabled: true,
   requestLimitKB: 5120,
   keepAliveTimeoutSeconds: 30,
+
+  controllerPath: './Controllers',
+
   loggerAppenders: [
       {
           type: "Console",
