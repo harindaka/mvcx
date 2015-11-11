@@ -6,6 +6,7 @@ module.exports = function(){
 
   this.load = function (modulePath, commonSuffix){
     var fs = require('fs');
+    var path = require('path');
 
     var regex = "/" + commonSuffix + "\\" + self.moduleExtension + "$/";
     var filePaths = getFilesInDirectory(modulePath, regex);
@@ -13,15 +14,20 @@ module.exports = function(){
     if(filePaths != null){
       var modules = [];
       self.lazyjs(filePaths).each(function(filePath){
-        modules.push({
+        var module = {
           filePath: filePath,
           fileName: path.basename(filePath),
-          moduleName: path.basename(filePath, self.moduleExtension),
-          module: require(path)
-        });
+          moduleName: path.basename(filePath, self.moduleExtension)
+        };
+        
+        module.modulePrefix = module.moduleName.substring(0, module.moduleName.length - commonSuffix.length);
+        module.moduleSuffix = commonSuffix;
+        module.module = require(path.join(modulePath, module.moduleName));
+
+        modules.push(module);
       });
     }
-    
+
     return modules;
   }
 
@@ -37,9 +43,9 @@ module.exports = function(){
 
     var filePaths = [];
     for(var i=0; i<files.length; i++){
-        var filename = path.join(dirPath, files[i]);
-        var stat = fs.lstatSync(filename);
-        if (!stat.isDirectory()){
+        var filePath = path.join(dirPath, files[i]);
+        var stat = fs.lstatSync(filePath);
+        if (!stat.isDirectory(filePath)){
           filePaths.push(filePath);
         }
     };

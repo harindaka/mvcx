@@ -71,7 +71,7 @@ module.exports = function(configMetadata){
 
     self.logger.info('[mvcx] Creating http server...');
 
-    var http = self.mvcxConfig.hooks.ioc.resolve('http');
+    var http = self.mvcxConfig.hooks.ioc.resolve('http').value;
     var server  = http.createServer(self.expressApp);
 
     self.logger.info('[mvcx] Http server created.');
@@ -105,7 +105,7 @@ module.exports = function(configMetadata){
 
     self.logger.info('[mvcx] Creating web socket (socket.io) server...');
 
-    var socketio = self.mvcxConfig.hooks.ioc.resolve('socket.io');
+    var socketio = self.mvcxConfig.hooks.ioc.resolve('socket.io').value;
     return socketio(server);
 
     self.logger.info('[mvcx] Web socket server created.');
@@ -183,29 +183,30 @@ module.exports = function(configMetadata){
     var expressApp = express();
 
     var ioc = self.mvcxConfig.hooks.ioc;
-    ioc.register({ name: 'express', dependency: express, lifestyle: 'singleton' }),
-    ioc.register({ name: 'expressApp', dependency: expressApp, lifestyle: 'singleton' }),
-    ioc.register({ name: 'config', dependency: self.appConfig, lifestyle: 'singleton' }),
-    ioc.register({ name: 'logger', dependency: self.logger, lifestyle: 'singleton' }),
-    ioc.register({ name: 'q', dependency: self.q, lifestyle: 'singleton' }),
-    ioc.register({ name: 'compression', dependency: require('compression'), lifestyle: 'singleton' }),
-    ioc.register({ name: 'body-parser', dependency: require('body-parser'), lifestyle: 'singleton' }),
-    ioc.register({ name: 'http', dependency: require('http'), lifestyle: 'singleton' }),
-    ioc.register({ name: 'socket.io', dependency: require('socket.io'), lifestyle: 'singleton' })
-    ioc.register({ name: 'merge', dependency: require('merge'), lifestyle: 'singleton' })
-    ioc.register({ name: 'lazy.js', dependency: require('lazy.js'), lifestyle: 'singleton' })
+    ioc.register({ name: 'express', dependency: { value: express }, lifestyle: 'singleton' }),
+    ioc.register({ name: 'expressApp', dependency: { value: expressApp }, lifestyle: 'singleton' }),
+    ioc.register({ name: 'config', dependency: { value: self.appConfig }, lifestyle: 'singleton' }),
+    ioc.register({ name: 'logger', dependency: { value: self.logger }, lifestyle: 'singleton' }),
+    ioc.register({ name: 'q', dependency: { value: self.q }, lifestyle: 'singleton' }),
+    ioc.register({ name: 'compression', dependency: { value: require('compression') }, lifestyle: 'singleton' }),
+    ioc.register({ name: 'body-parser', dependency: { value: require('body-parser') }, lifestyle: 'singleton' }),
+    ioc.register({ name: 'http', dependency: { value: require('http') }, lifestyle: 'singleton' }),
+    ioc.register({ name: 'socket.io', dependency: { value: require('socket.io') }, lifestyle: 'singleton' })
+    ioc.register({ name: 'merge', dependency: { value: require('merge') }, lifestyle: 'singleton' })
+    ioc.register({ name: 'lazy.js', dependency: { value: require('lazy.js') }, lifestyle: 'singleton' })
 
     self.logger.info('[mvcx] Dependency registration completed.');
   }
 
   function initializeExpress(){
     self.logger.info('[mvcx] Creating express app...');
-    var expressApp = self.mvcxConfig.hooks.ioc.resolve('expressApp');
+    var iocContainer = self.mvcxConfig.hooks.ioc;
+    var expressApp = iocContainer.resolve('expressApp').value;
 
     self.logger.info('[mvcx] Registering standard middleware...');
 
     if(self.mvcxConfig.compressionEnabled){
-        var compress = self.mvcxConfig.hooks.ioc.resolve('compression');
+        var compress = iocContainer.resolve('compression').value;
         expressApp.use(compress());
         self.logger.info('[mvcx] Gzip compression is enabled.');
     }
@@ -213,7 +214,7 @@ module.exports = function(configMetadata){
         self.logger.info('[mvcx] Gzip compression is disabled.');
     }
 
-    var bodyParser  = self.mvcxConfig.hooks.ioc.resolve('body-parser');
+    var bodyParser  = iocContainer.resolve('body-parser').value;
     expressApp.use(bodyParser.urlencoded({ extended: false }));
     expressApp.use(bodyParser.json({limit:(self.mvcxConfig.requestLimitKB)+"kb"}));
 
@@ -265,17 +266,89 @@ module.exports = function(configMetadata){
     var moduleLoader = new ModuleLoader();
     var path = require('path');
 
-    var controllers = moduleLoader.load(path.resolve(self.mvcxConfig.controllerPath));
+    var controllers = moduleLoader.load(path.resolve(self.mvcxConfig.controllerPath), self.mvcxConfig.controllerSuffix);
 
-    var iocContainer = self.mvcxConfig.hooks.ioc;
-    self.lazyjs(controllers).each(function(controller){
-      iocContainer.register({
-        name: controller.moduleName,
-        dependency: controller,
-        lifestyle: 'perRequest'
+    if(controllers == null){
+      self.logger.info('[mvcx] No controllers were found.');
+    }
+    else{
+      self.logger.info('[mvcx] Found ' + controllers.length + ' controller(s).');
+
+      var iocContainer = self.mvcxConfig.hooks.ioc;
+      self.lazyjs(controllers).each(function(controller){
+        var dependency = {
+          name: controller.moduleName,
+          dependency: controller.module,
+          lifestyle: 'perRequest'
+        };
+        iocContainer.register(dependency);
+
+        registerControllerAction('get', controller.modulePrefix, controller.moduleName, 'get');
+        registerControllerAction('put', controller.modulePrefix, controller.moduleName, 'put');
+        registerControllerAction('post', controller.modulePrefix, controller.moduleName, 'post');
+        registerControllerAction('delete', controller.modulePrefix, controller.moduleName, 'delete');
       });
+    }
 
-      //registerControllerAction(iocContainer.resolve(controller.moduleName), path, 'get');
-    });
-  };
+    self.logger.info('[mvcx] Controller loading completed.');
+  }
+
+  function registerControllerAction(verb, route, controllerName, actionName){
+    var iocContainer = self.mvcxConfig.hooks.ioc;
+    var controllerMetadata = iocContainer.resolve(controllerName);
+
+    if(!isEmpty(controllerMetadata[actionName])){
+      var path = require('path');
+      route = path.join('/', self.mvcxConfig.baseUrlPrefix, '/', route);
+
+      self.logger.info('[mvcx] Registering controller ' + controllerName + '.' + actionName + ' with route ' + route + '...');
+      self.expressApp[verb](route, function(req, res, next){
+        var controller = iocContainer.resolve(controllerName);
+        invokeControllerAction(controller[actionName], req, res, next);
+      });
+    }
+  }
+
+  function invokeControllerAction(action, req, res, next){
+    try{
+      var result = action(req, res, next);
+      if(!isEmpty(result) && self.q.isPromise(result)){
+        result.then(function(response){
+          createSuccessResponse(response, res);
+        }).catch(function(e){
+          createErrorResponse(e, res);
+        });
+      }
+      else{
+        createSuccessResponse(result, res);
+      }
+    }
+    catch(e){
+      createErrorResponse(e, res);
+    }
+  }
+
+  function createSuccessResponse(response, res){
+    if(!isEmpty(response)){
+      res.status(200);
+      res.json(response);
+    }
+    else{
+      res.status(200);
+    }
+  }
+
+  function createErrorResponse(e, res){
+    if(!isEmpty(e)){
+      res.status(500);
+      res.json({
+        errorName: e.name,
+        errorMessage: e.message,
+        errorStack: e.stack
+      });
+    }
+    else{
+      res.status(500);
+    }
+  }
 };
