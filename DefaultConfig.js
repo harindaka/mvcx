@@ -7,6 +7,7 @@ module.exports = {
   controllerSuffix: 'Controller',
   controllerPath: './Controllers',
   baseUrlPrefix: '/api/',
+  routes: null,
 
   loggerAppenders: [
       {

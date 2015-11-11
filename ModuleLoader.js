@@ -8,7 +8,7 @@ module.exports = function(){
     var fs = require('fs');
     var path = require('path');
 
-    var regex = "/" + commonSuffix + "\\" + self.moduleExtension + "$/";
+    var regex = new RegExp(commonSuffix + "\\" + self.moduleExtension + "$");
     var filePaths = getFilesInDirectory(modulePath, regex);
 
     if(filePaths != null){
@@ -19,7 +19,7 @@ module.exports = function(){
           fileName: path.basename(filePath),
           moduleName: path.basename(filePath, self.moduleExtension)
         };
-        
+
         module.modulePrefix = module.moduleName.substring(0, module.moduleName.length - commonSuffix.length);
         module.moduleSuffix = commonSuffix;
         module.module = require(path.join(modulePath, module.moduleName));
@@ -45,7 +45,7 @@ module.exports = function(){
     for(var i=0; i<files.length; i++){
         var filePath = path.join(dirPath, files[i]);
         var stat = fs.lstatSync(filePath);
-        if (!stat.isDirectory(filePath)){
+        if (!stat.isDirectory(filePath) && filter.test(filePath)){
           filePaths.push(filePath);
         }
     };
