@@ -30,7 +30,7 @@ module.exports = (function(){
 
       //Register middleware
 
-      server.listen(1234);
+      server.listen(2016);
 
       app.logger.info('Tests completed.');
 

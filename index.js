@@ -383,12 +383,18 @@ module.exports = function(configMetadata){
 
   function createErrorResponse(e, res){
     if(!isEmpty(e)){
-      res.status(500);
-      res.json({
+      var responseBody = {
         errorName: e.name,
         errorMessage: e.message,
-        errorStack: e.stack
-      });
+        errorStack: null
+      };
+
+      if(self.mvcxConfig.includeErrorStackInResponse){
+        responseBody.errorStack = e.stack;
+      }
+
+      res.status(500);
+      res.json(responseBody);
     }
     else{
       res.status(500);

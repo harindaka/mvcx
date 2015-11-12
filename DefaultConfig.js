@@ -5,6 +5,7 @@ module.exports = {
   compressionEnabled: true,
   requestLimitKB: 5120,
   keepAliveTimeoutSeconds: 30,
+  errorStackInResponse: true,
 
   controllerSuffix: 'Controller',
   controllerPath: './Controllers',
