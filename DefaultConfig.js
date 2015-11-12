@@ -1,4 +1,6 @@
 module.exports = {
+  autoRoutesEnabled: true,
+
   clusteringEnabled: false,
   compressionEnabled: true,
   requestLimitKB: 5120,
@@ -6,7 +8,7 @@ module.exports = {
 
   controllerSuffix: 'Controller',
   controllerPath: './Controllers',
-  baseUrlPrefix: '/api/',
+  baseUrlPrefix: '',
   routes: null,
 
   loggerAppenders: [

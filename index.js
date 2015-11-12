@@ -80,13 +80,35 @@ module.exports = function(configMetadata){
       self.logger.info('[mvcx] Found ' + controllers.length + ' controller(s).');
 
       var iocContainer = self.mvcxConfig.hooks.ioc;
+
+      var controllerRouteMap = createControllerHashMap();
       self.lazyjs(controllers).each(function(controller){
         iocContainer.register(controller.moduleName, controller.module, 'perRequest');
 
-        registerControllerAction('get', controller.modulePrefix, controller.moduleName, 'get');
-        registerControllerAction('put', controller.modulePrefix, controller.moduleName, 'put');
-        registerControllerAction('post', controller.modulePrefix, controller.moduleName, 'post');
-        registerControllerAction('delete', controller.modulePrefix, controller.moduleName, 'delete');
+        var routeForGetDefined = false;
+        var routeForPutDefined = false;
+        var routeForPostDefined = false;
+        var routeForDeleteDefined = false;
+        if(controllerRouteMap.has(controller.moduleName)){
+          var explicitRouteMethods = controllerRouteMap.get(controller.moduleName);
+          routeForGetDefined = explicitRouteMethods.has('get');
+          routeForPutDefined = explicitRouteMethods.has('put');
+          routeForPostDefined = explicitRouteMethods.has('post');
+          routeForDeleteDefined = explicitRouteMethods.has('delete');
+
+          self.lazyjs(explicitRouteMethods.values()).each(function(routesArray){
+            self.lazyjs(routesArray).each(function(route){
+              registerControllerAction(route.method, route.route, route.controller, route.action);
+            });
+          });
+        }
+
+        if(self.mvcxConfig.autoRoutesEnabled){
+          if(!routeForGetDefined) registerControllerAction('get', controller.modulePrefix, controller.moduleName, 'get');
+          if(!routeForPutDefined) registerControllerAction('put', controller.modulePrefix, controller.moduleName, 'put');
+          if(!routeForPostDefined) registerControllerAction('post', controller.modulePrefix, controller.moduleName, 'post');
+          if(!routeForDeleteDefined) registerControllerAction('delete', controller.modulePrefix, controller.moduleName, 'delete');
+        }
       });
     }
 
@@ -148,7 +170,7 @@ module.exports = function(configMetadata){
       initializeIoc();
 
       self.expressApp = initializeExpress();
-      
+
       self.logger.info('[mvcx] Intialization completed.');
 
       self.isInitializationSuccessful = true;
@@ -221,6 +243,7 @@ module.exports = function(configMetadata){
     ioc.register('socket.io', { value: require('socket.io') }, 'singleton')
     ioc.register('merge', { value: require('merge') }, 'singleton')
     ioc.register('lazy.js', { value: require('lazy.js') }, 'singleton')
+    ioc.register('hashmap', { value: require('hashmap') }, 'unique')
 
     self.logger.info('[mvcx] Dependency registration completed.');
   }
@@ -286,7 +309,34 @@ module.exports = function(configMetadata){
     return logger;
   }
 
-  function registerControllerAction(verb, route, controllerName, actionName){
+  function createControllerHashMap(){
+    var Hashmap = self.mvcxConfig.hooks.ioc.resolve('hashmap').value;
+    var controllers = new Hashmap();
+
+    if(!isEmpty(self.mvcxConfig.routes)){
+      self.lazyjs(self.mvcxConfig.routes).each(function(route){
+        if(!controllers.has(route.controller)){
+          var routeMethods = new Hashmap();
+          routeMethods.set(route.method, [route]);
+          controllers.set(route.controller, routeMethods);
+        }
+        else{
+          var controllerRoute = controllers.get(route.controller);
+          if(!controllerRoute.has(route.method)){
+            controllerRoute.set(route.method, [route])
+          }
+          else{
+            var routesArray = controllerRoute.get(route.method);
+            routesArray.push(route);
+          }
+        }
+      });
+    }
+
+    return controllers;
+  }
+
+  function registerControllerAction(method, route, controllerName, actionName){
     var iocContainer = self.mvcxConfig.hooks.ioc;
     var controllerMetadata = iocContainer.resolve(controllerName);
 
@@ -295,7 +345,7 @@ module.exports = function(configMetadata){
       route = path.join('/', self.mvcxConfig.baseUrlPrefix, '/', route);
 
       self.logger.info('[mvcx] Registering controller ' + controllerName + '.' + actionName + ' with route ' + route + '...');
-      self.expressApp[verb](route, function(req, res, next){
+      self.expressApp[method](route, function(req, res, next){
         var controller = iocContainer.resolve(controllerName);
         invokeControllerAction(controller[actionName], req, res, next);
       });
