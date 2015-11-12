@@ -26,7 +26,7 @@ module.exports = (function(){
 
       //Register middleware
 
-      app.loadControllers();
+      app.loadRoutes();
 
       //Register middleware
 

@@ -64,7 +64,7 @@ module.exports = function(configMetadata){
     });
   };
 
-  this.loadControllers = function(){
+  this.loadRoutes = function(){
     self.logger.info('[mvcx] Loading controllers...');
 
     var ModuleLoader = require('./ModuleLoader');
@@ -81,7 +81,7 @@ module.exports = function(configMetadata){
 
       var iocContainer = self.mvcxConfig.hooks.ioc;
 
-      var controllerRouteMap = createControllerHashMap();
+      var routeIndex = createRouteIndex();
       self.lazyjs(controllers).each(function(controller){
         iocContainer.register(controller.moduleName, controller.module, 'perRequest');
 
@@ -89,8 +89,8 @@ module.exports = function(configMetadata){
         var routeForPutDefined = false;
         var routeForPostDefined = false;
         var routeForDeleteDefined = false;
-        if(controllerRouteMap.has(controller.moduleName)){
-          var explicitRouteMethods = controllerRouteMap.get(controller.moduleName);
+        if(routeIndex.controllerBasedRoutes.has(controller.moduleName)){
+          var explicitRouteMethods = routeIndex.controllerBasedRoutes.get(controller.moduleName);
           routeForGetDefined = explicitRouteMethods.has('get');
           routeForPutDefined = explicitRouteMethods.has('put');
           routeForPostDefined = explicitRouteMethods.has('post');
@@ -98,17 +98,25 @@ module.exports = function(configMetadata){
 
           self.lazyjs(explicitRouteMethods.values()).each(function(routesArray){
             self.lazyjs(routesArray).each(function(route){
-              registerControllerAction(route.method, route.route, route.controller, route.action);
+              registerControllerBasedRoute(route.method, route.route, route.controller, route.action);
             });
           });
         }
 
         if(self.mvcxConfig.autoRoutesEnabled){
-          if(!routeForGetDefined) registerControllerAction('get', controller.modulePrefix, controller.moduleName, 'get');
-          if(!routeForPutDefined) registerControllerAction('put', controller.modulePrefix, controller.moduleName, 'put');
-          if(!routeForPostDefined) registerControllerAction('post', controller.modulePrefix, controller.moduleName, 'post');
-          if(!routeForDeleteDefined) registerControllerAction('delete', controller.modulePrefix, controller.moduleName, 'delete');
+          self.logger.info('[mvcx] Automatic routing enabled.');
+          if(!routeForGetDefined) registerControllerBasedRoute('get', controller.modulePrefix, controller.moduleName, 'get');
+          if(!routeForPutDefined) registerControllerBasedRoute('put', controller.modulePrefix, controller.moduleName, 'put');
+          if(!routeForPostDefined) registerControllerBasedRoute('post', controller.modulePrefix, controller.moduleName, 'post');
+          if(!routeForDeleteDefined) registerControllerBasedRoute('delete', controller.modulePrefix, controller.moduleName, 'delete');
         }
+        else{
+          self.logger.info('[mvcx] Automatic routing disabled.');
+        }
+      });
+
+      self.lazyjs(routeIndex.viewBasedRoutes).each(function(route){
+        registerViewBasedRoute(route.method, route.route, route.view);
       });
     }
 
@@ -250,10 +258,14 @@ module.exports = function(configMetadata){
 
   function initializeExpress(){
     self.logger.info('[mvcx] Creating express app...');
+    var path = require('path');
     var iocContainer = self.mvcxConfig.hooks.ioc;
     var expressApp = iocContainer.resolve('expressApp').value;
 
     self.logger.info('[mvcx] Registering standard middleware...');
+
+    expressApp.set('view engine', 'ejs');
+    expressApp.set('views', path.resolve(self.mvcxConfig.viewPath));
 
     if(self.mvcxConfig.compressionEnabled){
         var compress = iocContainer.resolve('compression').value;
@@ -309,34 +321,46 @@ module.exports = function(configMetadata){
     return logger;
   }
 
-  function createControllerHashMap(){
+  function createRouteIndex(){
     var Hashmap = self.mvcxConfig.hooks.ioc.resolve('hashmap').value;
-    var controllers = new Hashmap();
+    var controllerBasedRoutes = new Hashmap();
+    var viewBasedRoutes = [];
 
     if(!isEmpty(self.mvcxConfig.routes)){
       self.lazyjs(self.mvcxConfig.routes).each(function(route){
-        if(!controllers.has(route.controller)){
-          var routeMethods = new Hashmap();
-          routeMethods.set(route.method, [route]);
-          controllers.set(route.controller, routeMethods);
-        }
-        else{
-          var controllerRoute = controllers.get(route.controller);
-          if(!controllerRoute.has(route.method)){
-            controllerRoute.set(route.method, [route])
+        if(!isEmpty(route.controller)){
+          if(!controllerBasedRoutes.has(route.controller)){
+            var routeMethods = new Hashmap();
+            routeMethods.set(route.method, [route]);
+            controllerBasedRoutes.set(route.controller, routeMethods);
           }
           else{
-            var routesArray = controllerRoute.get(route.method);
-            routesArray.push(route);
+            var controllerRoute = controllerBasedRoutes.get(route.controller);
+            if(!controllerRoute.has(route.method)){
+              controllerRoute.set(route.method, [route])
+            }
+            else{
+              var routesArray = controllerRoute.get(route.method);
+              routesArray.push(route);
+            }
           }
+        }
+        else if(!isEmpty(route.view)){
+          viewBasedRoutes.push(route);
+        }
+        else{
+          throw new Error('[mvcx] Invalid route (' + route.route + ') encountered with no controller or view specified.')
         }
       });
     }
 
-    return controllers;
+    return {
+      controllerBasedRoutes: controllerBasedRoutes,
+      viewBasedRoutes: viewBasedRoutes
+    };
   }
 
-  function registerControllerAction(method, route, controllerName, actionName){
+  function registerControllerBasedRoute(method, route, controllerName, actionName){
     var iocContainer = self.mvcxConfig.hooks.ioc;
     var controllerMetadata = iocContainer.resolve(controllerName);
 
@@ -350,6 +374,13 @@ module.exports = function(configMetadata){
         invokeControllerAction(controller[actionName], req, res, next);
       });
     }
+  }
+
+  function registerViewBasedRoute(method, route, view){
+    self.logger.info('[mvcx] Registering view ' + view + ' with route ' + route + '...');
+    self.expressApp[method](route, function(req, res, next){
+      res.render(view);
+    });
   }
 
   function invokeControllerAction(action, req, res, next){
