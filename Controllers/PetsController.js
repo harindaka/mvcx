@@ -5,7 +5,7 @@ module.exports = function(
 
   this.q = q.value;
 
-  this.get = function(req){throw new Error(test);
+  this.get = function(req){
     return self.view('Index', { pets: [
       { petId: 1, name: 'Good Doge' },
       { petId: 2, name: 'Bad Cate' }
