@@ -1,3 +1,4 @@
 module.exports = {
-  ioc: require('./IocHook')
+  ioc: require('./Hooks/IocHook'),
+  errorHandler: require('./Hooks/ErrorHandlerHook')
 };

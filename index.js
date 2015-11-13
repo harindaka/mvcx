@@ -441,7 +441,7 @@ module.exports = function(configMetadata){
 
   function createSuccessResponse(response, res){
     if(typeof(response) === 'undefined'){
-      createErrorResponse(new Error('[mvcx] Controller action did not return a response.'));
+      createErrorResponse(new Error('[mvcx] Controller action did not return a response.'), res);
     }
     else {
       if(response == null || response instanceof self.responseTypes.VoidResponse){
@@ -494,22 +494,7 @@ module.exports = function(configMetadata){
   }
 
   function createErrorResponse(e, res){
-    if(!isEmpty(e)){
-      var responseBody = {
-        errorName: e.name,
-        errorMessage: e.message,
-        errorStack: null
-      };
-
-      if(self.mvcxConfig.includeErrorStackInResponse){
-        responseBody.errorStack = e.stack;
-      }
-
-      res.status(500);
-      res.json(responseBody);
-    }
-    else{
-      res.status(500);
-    }
+    var errorHandlerHook = self.mvcxConfig.hooks.errorHandler;
+    errorHandlerHook.createResponse(res, e, self.mvcxConfig.includeErrorStackInResponse);
   }
 };
