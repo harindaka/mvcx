@@ -8,6 +8,14 @@ module.exports = function(configMetadata){
   this.expressApp = null;
   this.logger = null;
   this.isInitializationSuccessful = false;
+  this.responseTypes = {
+    VoidResponse: require('./VoidResponse'),
+    DownloadResponse: require('./DownloadResponse'),
+    FileResponse: require('./FileResponse'),
+    RedirectResponse: require('./RedirectResponse'),
+    StreamResponse: require('./StreamResponse'),
+    ViewResponse: require('./ViewResponse')
+  }
 
   this.initialize = function(){
     return self.q.Promise(function(resolve, reject, notify) {
@@ -371,6 +379,35 @@ module.exports = function(configMetadata){
       self.logger.info('[mvcx] Registering controller ' + controllerName + '.' + actionName + ' with route ' + route + '...');
       self.expressApp[method](route, function(req, res, next){
         var controller = iocContainer.resolve(controllerName);
+
+        controller.view = function(view, model){
+          if(view.indexOf('/') == -1){
+            view = path.join(controllerName.substring(0, controllerName.length - self.mvcxConfig.controllerSuffix.length), view);
+          }
+
+          return new self.responseTypes.ViewResponse(view, model);
+        };
+
+        controller.redirect = function(route){
+          return new self.responseTypes.RedirectResponse(route);
+        }
+
+        controller.file = function(filePath, options){
+          return new self.responseTypes.FileResponse(filePath, options);
+        }
+
+        controller.download = function(filePath, downloadedFilename){
+          return new self.responseTypes.DownloadResponse(filePath, downloadedFilename);
+        }
+
+        controller.stream = function(stream){
+          return new self.responseTypes.StreamResponse(stream);
+        }
+
+        controller.void = function(){
+          return new self.responseTypes.VoidResponse();
+        }
+
         invokeControllerAction(controller[actionName], req, res, next);
       });
     }
@@ -403,12 +440,56 @@ module.exports = function(configMetadata){
   }
 
   function createSuccessResponse(response, res){
-    if(!isEmpty(response)){
-      res.status(200);
-      res.json(response);
+    if(typeof(response) === 'undefined'){
+      createErrorResponse(new Error('[mvcx] Controller action did not return a response.'));
     }
-    else{
-      res.status(200);
+    else {
+      if(response == null || response instanceof self.responseTypes.VoidResponse){
+        res.status(200);
+      }
+      else if(response instanceof self.responseTypes.ViewResponse){
+        if(response.model == null){
+          res.render(response.view);
+        }
+        else{
+          res.render(response.view, response.model);
+        }
+      }
+      else if(response instanceof self.responseTypes.DownloadResponse){
+        if(response.downloadedFilename == null){
+          res.download(response.filePath);
+        }
+        else{
+          res.download(response.filePath, response.downloadedFilename);
+        }
+      }
+      else if(response instanceof self.responseTypes.FileResponse){
+        if(response.options == null){
+          res.sendFile(response.filePath);
+        }
+        else{
+          res.sendFile(response.filePath, response.options)
+        }
+      }
+      else if(response instanceof self.responseTypes.RedirectResponse){
+        if(response.status == null){
+          res.redirect(response.route);
+        }
+        else{
+          res.redirect(response.status, response.route);
+        }
+      }
+      else if(response instanceof self.responseTypes.StreamResponse){
+        res.setHeader("content-type", response.contentType);
+        res.stream.pipe(res);
+      }
+      else if(response instanceof self.responseTypes.Response){
+        response.handler(res);
+      }
+      else {
+        res.status(200);
+        res.json(response);
+      }
     }
   }
 

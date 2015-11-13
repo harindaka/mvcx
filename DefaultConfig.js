@@ -9,7 +9,6 @@ module.exports = {
 
   controllerSuffix: 'Controller',
   controllerPath: './Controllers',
-  viewSuffix: 'View',
   viewPath: './Views',
   baseUrlPrefix: '',
   routes: null,
