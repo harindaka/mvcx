@@ -260,6 +260,7 @@ module.exports = function(configMetadata){
     ioc.register('merge', { value: require('merge') }, 'singleton')
     ioc.register('lazy.js', { value: require('lazy.js') }, 'singleton')
     ioc.register('hashmap', { value: require('hashmap') }, 'unique')
+    ioc.register('connect-assets', { value: require('connect-assets') }, 'singleton')
 
     self.logger.info('[mvcx] Dependency registration completed.');
   }
@@ -272,8 +273,14 @@ module.exports = function(configMetadata){
 
     self.logger.info('[mvcx] Registering standard middleware...');
 
-    expressApp.set('view engine', 'ejs');
-    expressApp.set('views', path.resolve(self.mvcxConfig.viewPath));
+    if(isEmpty(self.mvcxConfig.viewEngine)){
+      self.logger.info('[mvcx] No view engine specified.');
+    }
+    else{
+      self.logger.info('[mvcx] Registering view engine...');
+      expressApp.set('view engine', self.mvcxConfig.viewEngine);
+      expressApp.set('views', path.resolve(self.mvcxConfig.viewPath));
+    }
 
     if(self.mvcxConfig.compressionEnabled){
         var compress = iocContainer.resolve('compression').value;
@@ -284,6 +291,16 @@ module.exports = function(configMetadata){
         self.logger.info('[mvcx] Gzip compression is disabled.');
     }
 
+    if(isEmpty(self.mvcxConfig.assets)){
+      self.logger.info('[mvcx] Assets are disabled.');
+    }
+    else {
+      self.logger.info('[mvcx] Registering assets...');
+      var assets = iocContainer.resolve('connect-assets').value;
+      expressApp.use(assets(self.mvcxConfig.assets));
+    }
+
+    self.logger.info('[mvcx] Registering body parser with url encoding and json support...');
     var bodyParser  = iocContainer.resolve('body-parser').value;
     expressApp.use(bodyParser.urlencoded({ extended: false }));
     expressApp.use(bodyParser.json({limit:(self.mvcxConfig.requestLimitKB)+"kb"}));
