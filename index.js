@@ -3,8 +3,6 @@ module.exports = function(configMetadata){
 
   this.q = require('q');
   this.lazyjs = require('lazy.js');
-  this.appConfig = mergeConfig(configMetadata);
-  this.mvcxConfig = self.appConfig.mvcx;
   this.expressApp = null;
   this.logger = null;
   this.isInitializationSuccessful = false;
@@ -16,6 +14,10 @@ module.exports = function(configMetadata){
     StreamResponse: require('./StreamResponse'),
     ViewResponse: require('./ViewResponse')
   }
+
+  this.mvcxConfig = null;
+  this.appConfig = mergeConfig(configMetadata);
+  this.mvcxConfig = self.appConfig.mvcx;
 
   this.initialize = function(){
     return self.q.Promise(function(resolve, reject, notify) {
@@ -179,8 +181,6 @@ module.exports = function(configMetadata){
   }
 
   function initializeCore(){
-      var appConfig = null;
-
       self.logger = initializeLogging();
 
       initializeIoc();
@@ -232,6 +232,17 @@ module.exports = function(configMetadata){
 
     console.log('info: [mvcx] Merging mvcx default configuration with specified overrides from the application configuration...');
     config.mvcx = merge.recursive(true, require('./DefaultConfig'), overriddenMvcxConfig);
+
+    var path = require('path');
+    if(!isEmpty(config.mvcx.assets) && !isEmpty(config.mvcx.assets.paths) && config.mvcx.assets.paths.length > 0){
+      console.log('info: [mvcx] Resolving asset paths...');
+
+      var assetPaths = [];
+      self.lazyjs(config.mvcx.assets.paths).each(function(assetPath){
+        assetPaths.push(path.resolve(assetPath));
+      });
+      config.mvcx.assets.paths = assetPaths;
+    }
 
     console.log('info: [mvcx] Configuration initialized.');
     return config;

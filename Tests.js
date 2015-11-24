@@ -12,8 +12,7 @@ module.exports = (function(){
     };
 
     var app = new MvcxApp(configMetadata);
-    app.initialize().then(function(result){
-
+    app.initialize().then(function(result){      
       var server = app.createHttpServer();
       var websocket = app.createWebSocketServer(server);
 
@@ -30,7 +29,7 @@ module.exports = (function(){
 
       //Register middleware
 
-      server.listen(2016);
+      server.listen(3000);
 
       app.logger.info('Tests completed.');
 
