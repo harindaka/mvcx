@@ -212,7 +212,7 @@ module.exports = function(configMetadata){
 
     if (!isEmpty(environment)) {
         console.log('info: [mvcx] Loading configuration override for ' + environment + ' environment.');
-        var overrideConfig = require(configMetadata.environments[environment]);
+        var overrideConfig = require(configMetadata.environmentConfigs[environment]);
         if (!(overrideConfig)) {
             throw new Error('[mvcx] The ' + env + ' environment configuration override is missing.');
         }
@@ -281,6 +281,7 @@ module.exports = function(configMetadata){
     var path = require('path');
     var iocContainer = self.mvcxConfig.hooks.ioc;
     var expressApp = iocContainer.resolve('expressApp').value;
+    expressApp.locals.appConfig = self.appConfig;
 
     self.logger.info('[mvcx] Registering standard middleware...');
 

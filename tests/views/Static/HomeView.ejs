@@ -7,7 +7,10 @@
 <body>
   <h1>Welcome to MVCX</h1>
   <%= Date() %>
-
+  <p>Your configuration is as follows:</p>
+  <pre>
+    <%=JSON.stringify(appConfig)%>
+  </pre>
   <%- js('angular') %>
   <%- js('bootstrap') %>
 </body>
