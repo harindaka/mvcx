@@ -1,2 +1,2 @@
 # mvcx
-A web based MVC framework for NodeJS.
+A web based MVC framework for NodeJS. Hang on tight. We are still in beta...

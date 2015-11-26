@@ -1,5 +1,5 @@
 module.exports = (function(){
-    var MvcxApp = require('./index');
+    var MvcxApp = require('../index');
 
     var configMetadata = {
       baseConfig: require('./Config'),
@@ -12,7 +12,7 @@ module.exports = (function(){
     };
 
     var app = new MvcxApp(configMetadata);
-    app.initialize().then(function(result){      
+    app.initialize().then(function(result){
       var server = app.createHttpServer();
       var websocket = app.createWebSocketServer(server);
 
