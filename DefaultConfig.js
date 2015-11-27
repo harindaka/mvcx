@@ -46,5 +46,6 @@ module.exports = {
       }
   ],
 
-  hooks: require('./Hooks')
+  hooks: require('./Hooks'),
+  internalViewPath: 'views'
 };

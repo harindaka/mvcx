@@ -250,6 +250,8 @@ module.exports = function(configMetadata){
       config.mvcx.assets.paths = assetPaths;
     }
 
+    config.internalViewPath = path.join(__dirname, 'views');
+
     console.log('info: [mvcx] Configuration initialized.');
     return config;
   }
@@ -536,6 +538,11 @@ module.exports = function(configMetadata){
       throw new Error('[mvcx] No error handler specified for controller type ' + controllerType + '.');
     }
 
-    errorHandlerHook.createResponse(res, e, self.mvcxConfig.includeErrorStackInResponse);
+    var hookOptions = {
+      response: res,
+      error: e,
+      includeErrorStackInResponse: self.mvcxConfig.includeErrorStackInResponse
+    };
+    errorHandlerHook.createResponse(self.appConfig, hookOptions);
   }
 };

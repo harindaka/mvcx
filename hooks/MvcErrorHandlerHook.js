@@ -1,29 +1,28 @@
-function ErrorHandlerHook(){
+function MvcErrorHandlerHook(){
   var self = this;
 
-  this.createResponse = function(res, e, includeErrorStackInResponse){
-    if(typeof(e) !== 'undefined' && e != null){
-      var responseBody = {
-        errorName: e.name,
-        errorMessage: e.message,
+  this.createResponse = function(config, options){
+    if(typeof(options.error) !== 'undefined' && options.error != null){
+      var model = {
+        errorName: options.error.name,
+        errorMessage: options.error.message,
         errorStack: null
       };
 
-      if(includeErrorStackInResponse){
-        responseBody.errorStack = e.stack;
+      if(options.includeErrorStackInResponse){
+        model.errorStack = options.error.stack;
       }
 
       var path = require('path');
-      var viewPath = path.join(__dirname, '../', 'views/Error')
-      res.status(500).render(viewPath, responseBody);
+      options.response.status(500).render(path.join(config.internalViewPath, 'Error'), model);
     }
     else{
-      res.status(500);
+      options.response.status(500);
     }
   }
 }
 
-var hook = new ErrorHandlerHook();
+var hook = new MvcErrorHandlerHook();
 
 module.exports = {
   createResponse: hook.createResponse

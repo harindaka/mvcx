@@ -1,28 +1,27 @@
-function ErrorHandlerHook(){
+function ApiErrorHandlerHook(){
   var self = this;
 
-  this.createResponse = function(res, e, includeErrorStackInResponse){
-    if(typeof(e) !== 'undefined' && e != null){
+  this.createResponse = function(config, options){
+    if(typeof(options.error) !== 'undefined' && options.error != null){
       var responseBody = {
-        errorName: e.name,
-        errorMessage: e.message,
+        errorName: options.error.name,
+        errorMessage: options.error.message,
         errorStack: null
       };
 
-      if(includeErrorStackInResponse){
-        responseBody.errorStack = e.stack;
+      if(options.includeErrorStackInResponse){
+        responseBody.errorStack = options.error.stack;
       }
 
-      res.status(500);
-      res.json(responseBody);
+      options.response.status(500).json(responseBody);
     }
     else{
-      res.status(500);
+      options.response.status(500);
     }
   }
 }
 
-var hook = new ErrorHandlerHook();
+var hook = new ApiErrorHandlerHook();
 
 module.exports = {
   createResponse: hook.createResponse
