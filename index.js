@@ -12,7 +12,8 @@ module.exports = function(configMetadata){
     FileResponse: require('./FileResponse'),
     RedirectResponse: require('./RedirectResponse'),
     StreamResponse: require('./StreamResponse'),
-    ViewResponse: require('./ViewResponse')
+    ViewResponse: require('./ViewResponse'),
+    Response: require('./Response')
   }
 
   this.mvcxConfig = null;
@@ -93,6 +94,11 @@ module.exports = function(configMetadata){
 
       var routeIndex = createRouteIndex();
       self.lazyjs(controllers).each(function(controller){
+        var controllerType = 'mvc';
+        if(!isEmpty(controller.module.$type)){
+          controllerType = controller.module.$type;
+        }
+
         iocContainer.register(controller.moduleName, controller.module, 'perRequest');
 
         var routeForGetDefined = false;
@@ -108,17 +114,17 @@ module.exports = function(configMetadata){
 
           self.lazyjs(explicitRouteMethods.values()).each(function(routesArray){
             self.lazyjs(routesArray).each(function(route){
-              registerControllerBasedRoute(route.method, route.route, route.controller, route.action);
+              registerControllerBasedRoute(route.method, route.route, controllerType, route.controller, route.action);
             });
           });
         }
 
         if(self.mvcxConfig.autoRoutesEnabled){
           self.logger.info('[mvcx] Automatic routing enabled.');
-          if(!routeForGetDefined) registerControllerBasedRoute('get', controller.modulePrefix, controller.moduleName, 'get');
-          if(!routeForPutDefined) registerControllerBasedRoute('put', controller.modulePrefix, controller.moduleName, 'put');
-          if(!routeForPostDefined) registerControllerBasedRoute('post', controller.modulePrefix, controller.moduleName, 'post');
-          if(!routeForDeleteDefined) registerControllerBasedRoute('delete', controller.modulePrefix, controller.moduleName, 'delete');
+          if(!routeForGetDefined) registerControllerBasedRoute('get', controller.modulePrefix, controllerType, controller.moduleName, 'get');
+          if(!routeForPutDefined) registerControllerBasedRoute('put', controller.modulePrefix, controllerType, controller.moduleName, 'put');
+          if(!routeForPostDefined) registerControllerBasedRoute('post', controller.modulePrefix, controllerType, controller.moduleName, 'post');
+          if(!routeForDeleteDefined) registerControllerBasedRoute('delete', controller.modulePrefix, controllerType, controller.moduleName, 'delete');
         }
         else{
           self.logger.info('[mvcx] Automatic routing disabled.');
@@ -397,7 +403,7 @@ module.exports = function(configMetadata){
     };
   }
 
-  function registerControllerBasedRoute(method, route, controllerName, actionName){
+  function registerControllerBasedRoute(method, route, controllerType, controllerName, actionName){
     var iocContainer = self.mvcxConfig.hooks.ioc;
     var controllerMetadata = iocContainer.resolve(controllerName);
 
@@ -405,17 +411,11 @@ module.exports = function(configMetadata){
       var path = require('path');
       route = path.join('/', self.mvcxConfig.baseUrlPrefix, '/', route);
 
-      self.logger.info('[mvcx] Registering controller ' + controllerName + '.' + actionName + ' with route ' + route + '...');
+      self.logger.info('[mvcx] Registering controller action ' + controllerName + '.' + actionName + ' with route ' + route + '...');
       self.expressApp[method](route, function(req, res, next){
         var controller = iocContainer.resolve(controllerName);
-        if(isEmpty(controller.$type)){
-          controller.$type = 'mvc';
-        }
 
-        var controllerType = controller.$type;
-        var isApiController = (controller.$type === 'api');
-
-        if(!isApiController){
+        if(controllerType === 'mvc'){
           controller.view = function(view, model){
             if(view.indexOf('/') == -1){
               view = path.join(controllerName.substring(0, controllerName.length - self.mvcxConfig.controllerSuffix.length), view);
