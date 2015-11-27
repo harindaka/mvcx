@@ -7,10 +7,8 @@
 <body>
   <h1>Welcome to MVCX</h1>
   <%= Date() %>
-  <p>Your configuration is as follows:</p>
-  <pre>
-    <%=JSON.stringify(appConfig)%>
-  </pre>
+  <p><%= 'Current view engine is ' + config.mvcx.viewEngine + '.'%></p>
+
   <%- js('angular') %>
   <%- js('bootstrap') %>
 </body>

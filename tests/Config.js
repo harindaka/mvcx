@@ -7,8 +7,7 @@ module.exports = {
         './tests/assets/angular',
         './tests/assets/bootstrap'
       ],
-      buildDir: './tests/assets/bin',
-      compress: true
+      buildDir: './tests/assets/bin'
     },
 
     controllerPath: './tests/controllers',

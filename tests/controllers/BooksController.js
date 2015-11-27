@@ -13,6 +13,7 @@ module.exports = function(
   };
 };
 
+module.exports.$type = 'api'
 module.exports.$inject = [
   'q'
 ];

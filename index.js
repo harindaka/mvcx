@@ -281,7 +281,7 @@ module.exports = function(configMetadata){
     var path = require('path');
     var iocContainer = self.mvcxConfig.hooks.ioc;
     var expressApp = iocContainer.resolve('expressApp').value;
-    expressApp.locals.appConfig = self.appConfig;
+    expressApp.locals.config = self.appConfig;
 
     self.logger.info('[mvcx] Registering standard middleware...');
 
@@ -408,14 +408,22 @@ module.exports = function(configMetadata){
       self.logger.info('[mvcx] Registering controller ' + controllerName + '.' + actionName + ' with route ' + route + '...');
       self.expressApp[method](route, function(req, res, next){
         var controller = iocContainer.resolve(controllerName);
+        if(isEmpty(controller.$type)){
+          controller.$type = 'mvc';
+        }
 
-        controller.view = function(view, model){
-          if(view.indexOf('/') == -1){
-            view = path.join(controllerName.substring(0, controllerName.length - self.mvcxConfig.controllerSuffix.length), view);
-          }
+        var controllerType = controller.$type;
+        var isApiController = (controller.$type === 'api');
 
-          return new self.responseTypes.ViewResponse(view, model);
-        };
+        if(!isApiController){
+          controller.view = function(view, model){
+            if(view.indexOf('/') == -1){
+              view = path.join(controllerName.substring(0, controllerName.length - self.mvcxConfig.controllerSuffix.length), view);
+            }
+
+            return new self.responseTypes.ViewResponse(view, model);
+          };
+        }
 
         controller.redirect = function(route){
           return new self.responseTypes.RedirectResponse(route);
@@ -437,7 +445,7 @@ module.exports = function(configMetadata){
           return new self.responseTypes.VoidResponse();
         }
 
-        invokeControllerAction(controller[actionName], req, res, next);
+        invokeControllerAction(controllerType, controller[actionName], req, res, next);
       });
     }
   }
@@ -449,28 +457,28 @@ module.exports = function(configMetadata){
     });
   }
 
-  function invokeControllerAction(action, req, res, next){
+  function invokeControllerAction(controllerType, action, req, res, next){
     try{
       var result = action(req, res, next);
       if(!isEmpty(result) && self.q.isPromise(result)){
         result.then(function(response){
-          createSuccessResponse(response, res);
+          createSuccessResponse(controllerType, response, res);
         }).catch(function(e){
-          createErrorResponse(e, res);
+          createErrorResponse(controllerType, e, res);
         });
       }
       else{
-        createSuccessResponse(result, res);
+        createSuccessResponse(controllerType, result, res);
       }
     }
     catch(e){
-      createErrorResponse(e, res);
+      createErrorResponse(controllerType, e, res);
     }
   }
 
-  function createSuccessResponse(response, res){
+  function createSuccessResponse(controllerType, response, res){
     if(typeof(response) === 'undefined'){
-      createErrorResponse(new Error('[mvcx] Controller action did not return a response.'), res);
+      createErrorResponse(controllerType, new Error('[mvcx] Controller action did not return a response.'), res);
     }
     else {
       if(response == null || response instanceof self.responseTypes.VoidResponse){
@@ -516,14 +524,18 @@ module.exports = function(configMetadata){
         response.handler(res);
       }
       else {
-        res.status(200);
-        res.json(response);
+        res.status(200).json(response);
       }
     }
   }
 
-  function createErrorResponse(e, res){
-    var errorHandlerHook = self.mvcxConfig.hooks.errorHandler;
+  function createErrorResponse(controllerType, e, res){
+    var errorHandlerHook = self.mvcxConfig.hooks.errorHandlers[controllerType];
+
+    if(isEmpty(errorHandlerHook)){
+      throw new Error('[mvcx] No error handler specified for controller type ' + controllerType + '.');
+    }
+
     errorHandlerHook.createResponse(res, e, self.mvcxConfig.includeErrorStackInResponse);
   }
 };
