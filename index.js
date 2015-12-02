@@ -449,6 +449,10 @@ module.exports = function(configMetadata){
           return new self.responseTypes.VoidResponse();
         }
 
+        controller.response = function(){
+          return new self.responseTypes.Response();
+        }
+
         invokeControllerAction(controllerType, controller[actionName], req, res, next);
       });
     }
