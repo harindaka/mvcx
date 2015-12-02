@@ -5,7 +5,7 @@ module.exports = function(
 
   this.q = q.value;
 
-  this.retrieve = function(req){
+  this.retrieve = function(model){
     return [
       { bookId: 1, name: 'Harry Potter' },
       { bookId: 2, name: 'Game of Thrones' }

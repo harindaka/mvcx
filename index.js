@@ -475,7 +475,11 @@ module.exports = function(configMetadata){
 
   function invokeControllerAction(controllerType, action, req, res, next){
     try{
-      var result = action(req, res, next);
+      var merge = require('merge');
+      var model = merge.recursive(true, req.query, req.params);
+      model = merge.recursive(true, model, req.body);
+
+      var result = action(model, req, res, next);
       if(!isEmpty(result) && self.q.isPromise(result)){
         result.then(function(response){
           createSuccessResponse(controllerType, response, res);
