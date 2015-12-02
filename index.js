@@ -271,19 +271,20 @@ module.exports = function(configMetadata){
     var expressApp = express();
 
     var ioc = self.mvcxConfig.hooks.ioc;
-    ioc.register('express', { value: express }, 'singleton'),
-    ioc.register('expressApp', { value: expressApp }, 'singleton'),
-    ioc.register('config', { value: self.appConfig }, 'singleton'),
-    ioc.register('logger', { value: self.logger }, 'singleton'),
-    ioc.register('q', { value: self.q }, 'singleton'),
-    ioc.register('compression', { value: require('compression') }, 'singleton'),
-    ioc.register('body-parser', { value: require('body-parser') }, 'singleton'),
-    ioc.register('http', { value: require('http') }, 'singleton'),
-    ioc.register('socket.io', { value: require('socket.io') }, 'singleton')
-    ioc.register('merge', { value: require('merge') }, 'singleton')
-    ioc.register('lazy.js', { value: require('lazy.js') }, 'singleton')
-    ioc.register('hashmap', { value: require('hashmap') }, 'unique')
-    ioc.register('connect-assets', { value: require('connect-assets') }, 'singleton')
+    ioc.register('express', { value: express }, 'singleton');
+    ioc.register('expressApp', { value: expressApp }, 'singleton');
+    ioc.register('config', { value: self.appConfig }, 'singleton');
+    ioc.register('logger', { value: self.logger }, 'singleton');
+    ioc.register('q', { value: self.q }, 'singleton');
+    ioc.register('compression', { value: require('compression') }, 'singleton');
+    ioc.register('body-parser', { value: require('body-parser') }, 'singleton');
+    ioc.register('http', { value: require('http') }, 'singleton');
+    ioc.register('socket.io', { value: require('socket.io') }, 'singleton');
+    ioc.register('merge', { value: require('merge') }, 'singleton');
+    ioc.register('lazy.js', { value: require('lazy.js') }, 'singleton');
+    ioc.register('hashmap', { value: require('hashmap') }, 'unique');
+    ioc.register('connect-assets', { value: require('connect-assets') }, 'singleton');
+    ioc.register('tv4', { value: require('tv4') }, 'singleton');
 
     self.logger.info('[mvcx] Dependency registration completed.');
   }
@@ -475,7 +476,7 @@ module.exports = function(configMetadata){
 
   function invokeControllerAction(controllerType, action, req, res, next){
     try{
-      var merge = require('merge');
+      var merge = self.iocContainer.resolve('merge').value;
       var model = merge.recursive(true, req.query, req.params);
       model = merge.recursive(true, model, req.body);
 
