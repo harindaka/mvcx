@@ -105,6 +105,8 @@ module.exports = function(configMetadata){
           controllerType = controller.module.$type;
         }
 
+        extendController(controller, controllerType);
+
         iocContainer.register(controller.moduleName, controller.module, 'perRequest');
 
         var routeForGetDefined = false;
@@ -407,6 +409,47 @@ module.exports = function(configMetadata){
     };
   }
 
+  function extendController(controller, controllerType){
+    var extensions = {};
+    var path = require('path');
+
+    if(controllerType === 'mvc'){
+      extensions.view = function(view, model){
+        if(view.indexOf('/') == -1){
+          view = path.join(controller.moduleName.substring(0, controller.moduleName.length - self.mvcxConfig.controllerSuffix.length), view);
+        }
+
+        return new self.responseTypes.ViewResponse(view, model);
+      };
+    }
+
+    extensions.redirect = function(route){
+      return new self.responseTypes.RedirectResponse(route);
+    }
+
+    extensions.file = function(filePath, options){
+      return new self.responseTypes.FileResponse(filePath, options);
+    }
+
+    extensions.download = function(filePath, downloadedFilename){
+      return new self.responseTypes.DownloadResponse(filePath, downloadedFilename);
+    }
+
+    extensions.stream = function(stream){
+      return new self.responseTypes.StreamResponse(stream);
+    }
+
+    extensions.void = function(){
+      return new self.responseTypes.VoidResponse();
+    }
+
+    extensions.response = function(){
+      return new self.responseTypes.Response();
+    }
+
+    controller.module.prototype.mvcx = extensions;
+  }
+
   function registerControllerBasedRoute(method, route, controllerType, controllerName, actionName){
     var iocContainer = self.mvcxConfig.hooks.ioc;
     var controllerMetadata = iocContainer.resolve(controllerName);
@@ -418,41 +461,6 @@ module.exports = function(configMetadata){
       self.logger.info('[mvcx] Registering controller action ' + controllerName + '.' + actionName + ' with route ' + route + '...');
       self.expressApp[method](route, function(req, res, next){
         var controller = iocContainer.resolve(controllerName);
-
-        if(controllerType === 'mvc'){
-          controller.view = function(view, model){
-            if(view.indexOf('/') == -1){
-              view = path.join(controllerName.substring(0, controllerName.length - self.mvcxConfig.controllerSuffix.length), view);
-            }
-
-            return new self.responseTypes.ViewResponse(view, model);
-          };
-        }
-
-        controller.redirect = function(route){
-          return new self.responseTypes.RedirectResponse(route);
-        }
-
-        controller.file = function(filePath, options){
-          return new self.responseTypes.FileResponse(filePath, options);
-        }
-
-        controller.download = function(filePath, downloadedFilename){
-          return new self.responseTypes.DownloadResponse(filePath, downloadedFilename);
-        }
-
-        controller.stream = function(stream){
-          return new self.responseTypes.StreamResponse(stream);
-        }
-
-        controller.void = function(){
-          return new self.responseTypes.VoidResponse();
-        }
-
-        controller.response = function(){
-          return new self.responseTypes.Response();
-        }
-
         invokeControllerAction(controllerType, controller[actionName], req, res, next);
       });
     }
