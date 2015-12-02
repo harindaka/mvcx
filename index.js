@@ -76,7 +76,7 @@ module.exports = function(configMetadata){
   };
 
   this.loadRoutes = function(){
-    self.logger.info('[mvcx] Loading controllers...');
+    self.logger.info('[mvcx] Loading routes...');
 
     var ModuleLoader = require('./ModuleLoader');
     var moduleLoader = new ModuleLoader();
@@ -89,6 +89,12 @@ module.exports = function(configMetadata){
     }
     else{
       self.logger.info('[mvcx] Found ' + controllers.length + ' controller(s).');
+      if(self.mvcxConfig.autoRoutesEnabled){
+        self.logger.info('[mvcx] Automatic routing enabled.');
+      }
+      else{
+        self.logger.info('[mvcx] Automatic routing disabled.');
+      }
 
       var iocContainer = self.mvcxConfig.hooks.ioc;
 
@@ -120,14 +126,10 @@ module.exports = function(configMetadata){
         }
 
         if(self.mvcxConfig.autoRoutesEnabled){
-          self.logger.info('[mvcx] Automatic routing enabled.');
           if(!routeForGetDefined) registerControllerBasedRoute('get', controller.modulePrefix, controllerType, controller.moduleName, 'get');
           if(!routeForPutDefined) registerControllerBasedRoute('put', controller.modulePrefix, controllerType, controller.moduleName, 'put');
           if(!routeForPostDefined) registerControllerBasedRoute('post', controller.modulePrefix, controllerType, controller.moduleName, 'post');
           if(!routeForDeleteDefined) registerControllerBasedRoute('delete', controller.modulePrefix, controllerType, controller.moduleName, 'delete');
-        }
-        else{
-          self.logger.info('[mvcx] Automatic routing disabled.');
         }
       });
 
@@ -136,7 +138,7 @@ module.exports = function(configMetadata){
       });
     }
 
-    self.logger.info('[mvcx] Controller loading completed.');
+    self.logger.info('[mvcx] Loading routes completed.');
   };
 
   this.createHttpServer = function() {
