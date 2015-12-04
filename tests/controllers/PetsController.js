@@ -6,10 +6,13 @@ module.exports = function(
   this.q = q.value;
 
   this.get = function(model){
-    return self.mvcx.view('Index', { pets: [
-      { petId: 1, name: 'Good Doge' },
-      { petId: 2, name: 'Bad Cate' }
-    ]});
+    return self.mvcx.view('Index', {
+      title: 'My Pets',
+      pets: [
+        { petId: 1, name: 'Good Doge' },
+        { petId: 2, name: 'Bad Cate' }
+      ]
+    });
   };
 };
 

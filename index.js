@@ -476,7 +476,7 @@ module.exports = function(configMetadata){
 
   function invokeControllerAction(controllerType, action, req, res, next){
     try{
-      var merge = self.iocContainer.resolve('merge').value;
+      var merge = self.mvcxConfig.hooks.ioc.resolve('merge').value;
       var model = merge.recursive(true, req.query, req.params);
       model = merge.recursive(true, model, req.body);
 
