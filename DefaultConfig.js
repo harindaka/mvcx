@@ -26,9 +26,11 @@ module.exports = {
     sourceMaps: true //Should source maps be served? Set to false in production
   },
 
-  controllerSuffix: 'Controller',
   controllerPath: './controllers',
+  controllerSuffix: 'Controller',
   viewPath: './views',
+  modelPath: './models',
+  requestModelSuffix: 'Request',
   baseUrlPrefix: '',
   routes: null,
 
