@@ -12,7 +12,7 @@ module.exports = (function() {
     };
 
     var app = new MvcxApp(configMetadata); /* Pass optional second argument as {
-        express: require('express')
+        expressApp: require('express')()
     }*/
     app.initialize(function(error, result) {
         if (error) {
@@ -28,11 +28,7 @@ module.exports = (function() {
             var iocContainer = hooks.ioc;
             iocContainer.register('websocket', {value: websocket}, 'singleton');
 
-            var express = result.express;
-
-            //Register middleware
-
-            app.loadRoutes();
+            var expressApp = result.expressApp;
 
             //Register middleware
 

@@ -6,7 +6,6 @@ module.exports = function(
 
   this.q = require('q');
   this.lazyjs = require('lazy.js');
-  this.express = require('express');
   this.expressApp = null;
   this.logger = null;
   this.isInitializationSuccessful = false;
@@ -25,9 +24,14 @@ module.exports = function(
   this.mvcxConfig = self.appConfig.mvcx;
 
   if(typeof(options) !== 'undefined' && options !== null){
-    if(options.express) {
-      this.express = options.express;
+    if(options.expressApp) {
+      this.expressApp = options.expressApp;
     }
+  }
+
+  if(this.expressApp === null){
+    var express = require('express');
+    this.expressApp = express();
   }
 
   this.initialize = function(onCompleted){
@@ -65,7 +69,7 @@ module.exports = function(
         }
 
         var result = {
-          express: self.expressApp,
+          expressApp: self.expressApp,
           config: self.appConfig
         };
 
@@ -89,7 +93,68 @@ module.exports = function(
     }).done();
   };
 
-  this.loadRoutes = function(){
+  this.createHttpServer = function() {
+    if(!self.isInitializationSuccessful){
+      throw new Error('[mvcx] Unable create server when mvcx has not been initialized successfully.');
+    }
+
+    self.logger.info('[mvcx] Creating http server...');
+
+    var http = self.mvcxConfig.hooks.ioc.resolve('http').value;
+    var server  = http.createServer(self.expressApp);
+
+    self.logger.info('[mvcx] Http server created.');
+
+    server.on('connection', function (socket) {
+        if(self.mvcxConfig.keepAliveTimeoutSeconds > 0) {
+            //logger.debug('Connection opened. Setting keep alive timeout to %s seconds', config.keepAliveTimeoutSeconds);
+            socket.setKeepAlive(true);
+            socket.setTimeout(self.mvcxConfig.keepAliveTimeoutSeconds * 1000, function () {
+                //logger.debug('Connection closed after exceeding keep alive timeout.');
+            });
+        }
+        else{
+            socket.setKeepAlive(false);
+        }
+    });
+
+    if(self.mvcxConfig.keepAliveTimeoutSeconds > 0) {
+        self.logger.info('[mvcx] Server connection keep-alive timeout set to %s seconds.', self.mvcxConfig.keepAliveTimeoutSeconds);
+    }else {
+        self.logger.info('[mvcx] Server connection keep-alive is disabled.');
+    }
+
+    return server;
+  };
+
+  this.createWebSocketServer = function(server){
+    if(!self.isInitializationSuccessful){
+      throw new Error('[mvcx] Unable create server when mvcx has not been initialized successfully.');
+    }
+
+    self.logger.info('[mvcx] Creating web socket (socket.io) server...');
+
+    var socketio = self.mvcxConfig.hooks.ioc.resolve('socket.io').value;
+    return socketio(server);
+
+    self.logger.info('[mvcx] Web socket server created.');
+  }
+
+  function initializeCore(){
+      self.logger = initializeLogging();
+
+      initializeIoc();
+
+      initializeExpress();
+
+      initializeRoutes();
+
+      self.logger.info('[mvcx] Intialization completed.');
+
+      self.isInitializationSuccessful = true;
+  }
+
+  function initializeRoutes(){
     self.logger.info('[mvcx] Loading routes...');
 
     var ModuleLoader = require('./ModuleLoader');
@@ -162,65 +227,6 @@ module.exports = function(
     self.logger.info('[mvcx] Loading routes completed.');
   };
 
-  this.createHttpServer = function() {
-    if(!self.isInitializationSuccessful){
-      throw new Error('[mvcx] Unable create server when mvcx has not been initialized successfully.');
-    }
-
-    self.logger.info('[mvcx] Creating http server...');
-
-    var http = self.mvcxConfig.hooks.ioc.resolve('http').value;
-    var server  = http.createServer(self.expressApp);
-
-    self.logger.info('[mvcx] Http server created.');
-
-    server.on('connection', function (socket) {
-        if(self.mvcxConfig.keepAliveTimeoutSeconds > 0) {
-            //logger.debug('Connection opened. Setting keep alive timeout to %s seconds', config.keepAliveTimeoutSeconds);
-            socket.setKeepAlive(true);
-            socket.setTimeout(self.mvcxConfig.keepAliveTimeoutSeconds * 1000, function () {
-                //logger.debug('Connection closed after exceeding keep alive timeout.');
-            });
-        }
-        else{
-            socket.setKeepAlive(false);
-        }
-    });
-
-    if(self.mvcxConfig.keepAliveTimeoutSeconds > 0) {
-        self.logger.info('[mvcx] Server connection keep-alive timeout set to %s seconds.', self.mvcxConfig.keepAliveTimeoutSeconds);
-    }else {
-        self.logger.info('[mvcx] Server connection keep-alive is disabled.');
-    }
-
-    return server;
-  };
-
-  this.createWebSocketServer = function(server){
-    if(!self.isInitializationSuccessful){
-      throw new Error('[mvcx] Unable create server when mvcx has not been initialized successfully.');
-    }
-
-    self.logger.info('[mvcx] Creating web socket (socket.io) server...');
-
-    var socketio = self.mvcxConfig.hooks.ioc.resolve('socket.io').value;
-    return socketio(server);
-
-    self.logger.info('[mvcx] Web socket server created.');
-  }
-
-  function initializeCore(){
-      self.logger = initializeLogging();
-
-      initializeIoc();
-
-      self.expressApp = initializeExpress();
-
-      self.logger.info('[mvcx] Intialization completed.');
-
-      self.isInitializationSuccessful = true;
-  }
-
   function mergeConfig(configMetadata) {
     var environment;
     var config;
@@ -286,11 +292,8 @@ module.exports = function(
   function initializeIoc(){
     self.logger.info('[mvcx] Registering dependencies...');
 
-    var expressApp = self.express();
-
     var ioc = self.mvcxConfig.hooks.ioc;
-    ioc.register('express', { value: self.express }, 'singleton');
-    ioc.register('expressApp', { value: expressApp }, 'singleton');
+    ioc.register('expressApp', { value: self.expressApp }, 'singleton');
     ioc.register('config', { value: self.appConfig }, 'singleton');
     ioc.register('logger', { value: self.logger }, 'singleton');
     ioc.register('q', { value: self.q }, 'singleton');
