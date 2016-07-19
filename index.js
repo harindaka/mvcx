@@ -115,6 +115,7 @@ module.exports = function(configMetadata){
         var routeForPutDefined = false;
         var routeForPostDefined = false;
         var routeForDeleteDefined = false;
+        var routeForPatchDefined = false;
         if(routeIndex.controllerBasedRoutes.has(controller.moduleName)){
           var explicitRouteMethods = routeIndex.controllerBasedRoutes.get(controller.moduleName);
           routeForGetDefined = explicitRouteMethods.has('get');
@@ -513,8 +514,8 @@ module.exports = function(configMetadata){
     var controllerMetadata = iocContainer.resolve(route.controller);
 
     if(!isEmpty(controllerMetadata[route.action])){
-      var path = require('path');
-      var formattedRoute = path.join('/', self.mvcxConfig.baseUrlPrefix, '/', route.route);
+      var url = require('url');
+      var formattedRoute = url.resolve(url.resolve(url.resolve('/', self.mvcxConfig.baseUrlPrefix), '/'), route.route);
 
       self.logger.info('[mvcx] Registering controller action ' + route.controller + '.' + route.action + ' with route ' + formattedRoute + '...');
       self.expressApp[route.method](formattedRoute, function(req, res, next){
