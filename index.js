@@ -1,8 +1,12 @@
-module.exports = function(configMetadata){
+module.exports = function(
+    configMetadata,
+    options
+){
   var self = this;
 
   this.q = require('q');
   this.lazyjs = require('lazy.js');
+  this.express = require('express');
   this.expressApp = null;
   this.logger = null;
   this.isInitializationSuccessful = false;
@@ -20,8 +24,14 @@ module.exports = function(configMetadata){
   this.appConfig = mergeConfig(configMetadata);
   this.mvcxConfig = self.appConfig.mvcx;
 
-  this.initialize = function(){
-    return self.q.Promise(function(resolve, reject, notify) {
+  if(typeof(options) !== 'undefined' && options !== null){
+    if(options.express) {
+      this.express = options.express;
+    }
+  }
+
+  this.initialize = function(onCompleted){
+    self.q.Promise(function(resolve, reject, notify) {
       try{
         console.log('info: [mvcx] Initializing...');
 
@@ -72,7 +82,11 @@ module.exports = function(configMetadata){
 
         reject(e);
       }
-    });
+    }).then(function(result){
+      onCompleted(null, result);
+    }).catch(function(e){
+      onCompleted(e, null);
+    }).done();
   };
 
   this.loadRoutes = function(){
@@ -272,11 +286,10 @@ module.exports = function(configMetadata){
   function initializeIoc(){
     self.logger.info('[mvcx] Registering dependencies...');
 
-    var express = require('express');
-    var expressApp = express();
+    var expressApp = self.express();
 
     var ioc = self.mvcxConfig.hooks.ioc;
-    ioc.register('express', { value: express }, 'singleton');
+    ioc.register('express', { value: self.express }, 'singleton');
     ioc.register('expressApp', { value: expressApp }, 'singleton');
     ioc.register('config', { value: self.appConfig }, 'singleton');
     ioc.register('logger', { value: self.logger }, 'singleton');
