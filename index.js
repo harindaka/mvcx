@@ -93,7 +93,7 @@ module.exports = function(
     }).done();
   };
 
-  this.createHttpServer = function() {
+  this.createHttpServer = function(options) {
     if(!self.isInitializationSuccessful){
       throw new Error('[mvcx] Unable create server when mvcx has not been initialized successfully.');
     }
@@ -105,29 +105,29 @@ module.exports = function(
 
     self.logger.info('[mvcx] Http server created.');
 
-    server.on('connection', function (socket) {
-        if(self.mvcxConfig.keepAliveTimeoutSeconds > 0) {
-            //logger.debug('Connection opened. Setting keep alive timeout to %s seconds', config.keepAliveTimeoutSeconds);
-            socket.setKeepAlive(true);
-            socket.setTimeout(self.mvcxConfig.keepAliveTimeoutSeconds * 1000, function () {
-                //logger.debug('Connection closed after exceeding keep alive timeout.');
-            });
-        }
-        else{
-            socket.setKeepAlive(false);
-        }
-    });
-
-    if(self.mvcxConfig.keepAliveTimeoutSeconds > 0) {
-        self.logger.info('[mvcx] Server connection keep-alive timeout set to %s seconds.', self.mvcxConfig.keepAliveTimeoutSeconds);
-    }else {
-        self.logger.info('[mvcx] Server connection keep-alive is disabled.');
-    }
+    createServerCore(server);
 
     return server;
   };
 
-  this.createWebSocketServer = function(server){
+  this.createHttpsServer = function(options) {
+    if(!self.isInitializationSuccessful){
+      throw new Error('[mvcx] Unable create server when mvcx has not been initialized successfully.');
+    }
+
+    self.logger.info('[mvcx] Creating https server...');
+
+    var https = self.mvcxConfig.hooks.ioc.resolve('https').value;
+    var server  = https.createServer(options, self.expressApp);
+
+    self.logger.info('[mvcx] Https server created.');
+
+    createServerCore(server);
+
+    return server;
+  };
+
+  this.createWebSocket = function(server){
     if(!self.isInitializationSuccessful){
       throw new Error('[mvcx] Unable create server when mvcx has not been initialized successfully.');
     }
@@ -138,6 +138,27 @@ module.exports = function(
     return socketio(server);
 
     self.logger.info('[mvcx] Web socket server created.');
+  }
+
+  function createServerCore(server){
+    server.on('connection', function (socket) {
+      if(self.mvcxConfig.keepAliveTimeoutSeconds > 0) {
+        //logger.debug('Connection opened. Setting keep alive timeout to %s seconds', config.keepAliveTimeoutSeconds);
+        socket.setKeepAlive(true);
+        socket.setTimeout(self.mvcxConfig.keepAliveTimeoutSeconds * 1000, function () {
+          //logger.debug('Connection closed after exceeding keep alive timeout.');
+        });
+      }
+      else{
+        socket.setKeepAlive(false);
+      }
+    });
+
+    if(self.mvcxConfig.keepAliveTimeoutSeconds > 0) {
+      self.logger.info('[mvcx] Server connection keep-alive timeout set to %s seconds.', self.mvcxConfig.keepAliveTimeoutSeconds);
+    }else {
+      self.logger.info('[mvcx] Server connection keep-alive is disabled.');
+    }
   }
 
   function initializeCore(){
@@ -300,6 +321,7 @@ module.exports = function(
     ioc.register('compression', { value: require('compression') }, 'singleton');
     ioc.register('body-parser', { value: require('body-parser') }, 'singleton');
     ioc.register('http', { value: require('http') }, 'singleton');
+    ioc.register('https', { value: require('https') }, 'singleton');
     ioc.register('socket.io', { value: require('socket.io') }, 'singleton');
     ioc.register('merge', { value: require('merge') }, 'singleton');
     ioc.register('lazy.js', { value: require('lazy.js') }, 'singleton');

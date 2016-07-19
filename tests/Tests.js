@@ -20,8 +20,18 @@ module.exports = (function() {
             app.logger.error(error);
         }
         else {
-            var server = app.createHttpServer();
-            var websocket = app.createWebSocketServer(server);
+            var httpServer = app.createHttpServer();
+            /*
+             Alternatively a https server can be created as follows
+
+             var fs = require('fs');
+             var options = {
+                key: fs.readFileSync('test/fixtures/keys/agent2-key.pem'),
+                cert: fs.readFileSync('test/fixtures/keys/agent2-cert.cert')
+             }
+             var httpsServer = app.createHttpsServer(options);
+             */
+            var websocket = app.createWebSocket(httpServer);
 
             var hooks = result.config.mvcx.hooks;
 
@@ -30,9 +40,11 @@ module.exports = (function() {
 
             var expressApp = result.expressApp;
 
-            //Register middleware
+            //Register middleware using expressApp
 
-            server.listen(3000);
+            httpServer.listen(3000);
+            //httpsServer.listen(443);
+
 
             app.logger.info('Tests completed.');
         }
