@@ -746,6 +746,6 @@ module.exports = function(
       }
     }
 
-    self.expressApp.locals.mvcx.assets[route] = url.toString();
+    expressApp.locals.mvcx.assets[route] = url.toString();
   }
 };

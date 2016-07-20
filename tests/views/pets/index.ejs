@@ -6,7 +6,7 @@
 <% } %>
 </ul>
 </br>
-<button click="calculateTotalAge()">Total Age?</button>
+<button onclick="calculateTotalAge()">Total Age?</button>
 <script>
     function calculateTotalAge() {
         var ages = [];
@@ -14,7 +14,7 @@
             ages.push($(this).text);
         })
 
-        var SumUtil = require('assets.utils.sum-util');
+        var SumUtil = require('utils.sum-util');
         var sumUtil = new SumUtil();
         var totalAge = sumUtil.sum(ages);
         alert('Total Age: ' + totalAge);
