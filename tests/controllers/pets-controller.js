@@ -17,7 +17,6 @@ module.exports = function(
   };
 };
 
-module.exports.$type = 'mvc'
 module.exports.$inject = [
   'q'
 ];

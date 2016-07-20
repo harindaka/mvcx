@@ -495,7 +495,7 @@ module.exports = function(
 
   function extendController(controllerModuleName, controllerModule){
     if(isEmpty(controllerModule.$type)){
-      controllerModule.$type = 'mvc';
+      controllerModule.$type = self.mvcxConfig.controllerType;
     }
 
     var extensions = {};
