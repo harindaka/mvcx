@@ -10,8 +10,9 @@ module.exports = function(
     return self.mvcx.view('index', {
       title: 'My Pets',
       pets: [
-        { petId: 1, name: 'Good Doge' },
-        { petId: 2, name: 'Bad Cate' }
+        { petId: 1, name: 'Doge', age: 5 },
+        { petId: 2, name: 'Cate', age: 6 },
+        { petId: 3, name: 'Foxy', age: 7 },
       ]
     });
   };

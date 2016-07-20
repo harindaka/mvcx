@@ -3,11 +3,28 @@ module.exports = {
     clusteringEnabled: false,
 
     assets: {
-      paths: [
-        './tests/assets/angular',
-        './tests/assets/bootstrap'
-      ],
-      buildDir: './tests/assets/bin'
+      '/assets/images/ocean-ship.jpg': './assets/images/ocean-ship.jpg',
+
+      '/assets/jquery/jquery.js': './assets/jquery/jquery.js',
+
+      '/assets/utils': {
+        browserify: {
+          modules: [
+            'lazy.js', //This is a dependant npm package for the below modules
+            {
+              './assets/utils/sum-util.js': { run: false, expose: 'app.assets.utils.sum-util' }
+              //More modules here
+            }
+          ],
+          options: {
+            cache: false,
+            precompile: false,
+            minify: false,
+            gzip: false,
+            debug: true
+          }
+        }
+      }
     },
 
     controllerPath: './tests/controllers',

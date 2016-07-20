@@ -2,7 +2,22 @@
 <h1>My Pets</h1>
 <ul>
 <% for(var i=0; i < pets.length; i++){ %>
-    <li><%= pets[i].name %></li>
+    <li><%= pets[i].name %>&nbsp;(<span class="age">pets[i].age</span> years)</li>
 <% } %>
 </ul>
+</br>
+<button click="calculateTotalAge()">Total Age?</button>
+<script>
+    function calculateTotalAge() {
+        var ages = [];
+        var petAgeElements = $('.age').each(function(){
+            ages.push($(this).text);
+        })
+
+        var SumUtil = require('assets.utils.sum-util');
+        var sumUtil = new SumUtil();
+        var totalAge = sumUtil.sum(ages);
+        alert('Total Age: ' + totalAge);
+    }
+</script>
 <% include ../common-footer %>

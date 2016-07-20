@@ -77,21 +77,21 @@ module.exports = function(
         resolve(result);
       }
       catch(e){
-        var failureMessage = '[mvcx] Intialization failed.';
-        if(self.logger != null){
-          self.logger.error(failureMessage);
-        }
-        else{
-          console.log(failureMessage);
-        }
-
         reject(e);
       }
     }).then(function(result){
       if(cluster === null || !cluster.isMaster) {
+        self.logger.info('[mvcx] Initialization completed.');
         onCompleted(null, result);
       }
     }).catch(function(e){
+      var failureMessage = '[mvcx] Intialization failed.';
+      if(self.logger != null){
+        self.logger.error(failureMessage);
+      }
+      else{
+        console.log(failureMessage);
+      }
       onCompleted(e, null);
     }).done();
   };
@@ -164,18 +164,33 @@ module.exports = function(
     }
   }
 
-  function initializeCore(){
-      self.logger = initializeLogging();
+  function initializeCore() {
+    self.logger = initializeLogging();
 
-      initializeIoc();
+    //Add any data to be utilized in ejs templates in expressApp.locals.mvcx
+    self.expressApp.locals.mvcx = {};
 
-      initializeExpress();
+    initializeIoc();
 
-      initializeRoutes();
+    initializeExpress();
 
-      self.logger.info('[mvcx] Intialization completed.');
+    initializeAssets();
 
-      self.isInitializationSuccessful = true;
+    initializeRoutes();
+
+    self.isInitializationSuccessful = true;
+  }
+
+  function initializeAssets(){
+    self.expressApp.locals.mvcx.assets = {};
+    if(!isEmpty(self.mvcxConfig.assets)) {
+      for (var route in self.mvcxConfig.assets) {
+        if(self.mvcxConfig.assets.hasOwnProperty(route)) {
+          var assetConfig = self.mvcxConfig.assets[route];
+          registerAsset(self.expressApp, route, assetConfig);
+        }
+      }
+    }
   }
 
   function initializeRoutes(){
@@ -658,5 +673,89 @@ module.exports = function(
       includeErrorStackInResponse: self.mvcxConfig.includeErrorStackInResponse
     };
     errorHandlerHook.createResponse(self.appConfig, hookOptions);
+  }
+
+  function registerAsset(expressApp, route, assetConfig){
+    var fingerprintQueryKey = '__fingerprint';
+    var rdType = typeof(assetConfig);
+    if(rdType === 'string'){
+      var path = require('path');
+      var assetFile = path.resolve(assetConfig);
+      fingerprintAsset(expressApp, route, [assetFile], fingerprintQueryKey);
+      expressApp.get(route, function(req, res){
+        res.sendFile(assetFile);
+      });
+    }
+    else if(assetConfig !== null && rdType === 'object'){
+
+      if(typeof(assetConfig['browserify']) !== 'undefined' && assetConfig['browserify'] !== null){
+        var browserifyConfig = assetConfig['browserify'];
+        var browserifyModules = browserifyConfig['modules'];
+        if(typeof(browserifyModules) !== 'undefined' && browserifyModules !== null){
+          var browserify = require('browserify-middleware');
+          browserify.settings.mode = 'production';
+
+          var browserifyOptions = browserifyConfig['options'];
+          if(typeof(browserifyOptions) === 'undefined' || browserifyOptions === null){
+            browserifyOptions = {
+              minify: false,
+              gzip: false,
+              debug: true
+            };
+          }
+          browserifyOptions.mode = 'production';
+
+          if(typeof(browserifyOptions.cache) === 'undefined'
+              || browserifyOptions.cache === null
+              || (typeof(browserifyOptions.cache) === 'boolean' && browserifyOptions.cache === false)
+              || (typeof(browserifyOptions.cache) === 'string' && browserifyOptions.cache === '')){
+            browserifyOptions.cache = 1000;
+          }
+
+          browserifyOptions.precompile = true;
+          browserifyOptions.postcompile = function(source){
+            fingerprintAsset(expressApp, route, source, fingerprintQueryKey);
+            return source;
+          };
+
+          expressApp.get(route, browserify(browserifyModules, browserifyOptions));
+        }
+        else{
+          throw new Error('[mvcx] Invalid route definition specified for asset ' + route + '.');
+        }
+      }
+      else{
+        throw new Error('[mvcx] Invalid route definition specified for asset ' + route + '.');
+      }
+    }
+    else{
+      throw new Error('[mvcx] Invalid route definition specified for asset ' + route + '.');
+    }
+  }
+
+  function fingerprintAsset(expressApp, route, filesOrData, query){
+    var Uri = require('urijs');
+    var url = new Uri(route);
+
+    var fingerprint = '';
+    if(typeof(filesOrData) !== 'undefined' && filesOrData !== null){
+      if(Array.isArray(filesOrData) && filesOrData.length > 0){
+        var hashFiles = require('hash-files');
+        fingerprint = hashFiles.sync({ files:filesOrData, algorithm:'md5' });
+      }
+      else if(typeof(filesOrData) === 'string' && filesOrData.length > 0){
+        var crypto = require('crypto');
+        fingerprint = crypto.createHash('md5').update(filesOrData).digest('hex');
+      }
+      else{
+        throw new Error('[mvcx] Invalid content encountered for asset ' + route + '.');
+      }
+
+      if(fingerprint !== null && fingerprint.length > 0){
+        url.addQuery(query, fingerprint);
+      }
+    }
+
+    self.expressApp.locals.mvcx.assets[route] = url.toString();
   }
 };
