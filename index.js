@@ -340,7 +340,6 @@ module.exports = function(
     ioc.register('merge', { value: require('merge') }, 'singleton');
     ioc.register('lazy.js', { value: require('lazy.js') }, 'singleton');
     ioc.register('hashmap', { value: require('hashmap') }, 'unique');
-    ioc.register('connect-assets', { value: require('connect-assets') }, 'singleton');
     ioc.register('tv4', { value: require('tv4') }, 'singleton');
 
     self.logger.info('[mvcx] Dependency registration completed.');
@@ -371,15 +370,6 @@ module.exports = function(
     }
     else{
         self.logger.info('[mvcx] Gzip compression is disabled.');
-    }
-
-    if(isEmpty(self.mvcxConfig.assets)){
-      self.logger.info('[mvcx] Assets are disabled.');
-    }
-    else {
-      self.logger.info('[mvcx] Registering assets...');
-      var assets = iocContainer.resolve('connect-assets').value;
-      expressApp.use(assets(self.mvcxConfig.assets));
     }
 
     self.logger.info('[mvcx] Registering body parser with url encoding and json support...');

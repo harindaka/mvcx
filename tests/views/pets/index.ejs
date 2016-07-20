@@ -2,7 +2,7 @@
 <h1>My Pets</h1>
 <ul>
 <% for(var i=0; i < pets.length; i++){ %>
-    <li><%= pets[i].name %>&nbsp;(<span class="age">pets[i].age</span> years)</li>
+    <li><%= pets[i].name %>&nbsp;(<span class="age"><%= pets[i].age %></span> years)</li>
 <% } %>
 </ul>
 </br>
