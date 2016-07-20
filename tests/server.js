@@ -2,12 +2,12 @@ module.exports = (function() {
     var MvcxApp = require('../index');
 
     var configMetadata = {
-        baseConfig: require('./Config'),
+        baseConfig: require('./config'),
         currentConfig: 'dev',
         configs: {
-            dev: require('./Config.dev'),
-            // qa: require('./Config.qa'),
-            // prod: require('./Config.prod')
+            dev: require('./config-dev'),
+            // qa: require('./config-qa'),
+            // prod: require('./config-prod')
         }
     };
 

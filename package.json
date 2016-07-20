@@ -4,7 +4,7 @@
   "description": "A web based MVC framework for Node JS.",
   "main": "index.js",
   "scripts": {
-    "test": "node ./tests/Tests.js"
+    "test": "node ./tests/server.js"
   },
   "repository": {
     "type": "git",
