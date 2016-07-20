@@ -27,11 +27,13 @@
   ],
   "dependencies": {
     "body-parser": "^1.14.1",
+    "browserify-middleware": "^7.0.0",
     "compression": "^1.6.0",
     "connect-assets": "^5.0.1",
     "csswring": "^4.0.0",
     "ejs": "^2.3.4",
     "express": "^4.13.3",
+    "hash-files": "^1.1.1",
     "hashmap": "^2.0.4",
     "intravenous": "^0.1.4-beta",
     "lazy.js": "^0.4.2",
