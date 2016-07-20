@@ -14,7 +14,7 @@ function MvcErrorHandlerHook(){
       }
 
       var path = require('path');
-      options.response.status(500).render(path.join(config.internalViewPath, 'Error'), model);
+      options.response.status(500).render(path.join(config.internalViewPath, 'error'), model);
     }
     else{
       options.response.status(500);

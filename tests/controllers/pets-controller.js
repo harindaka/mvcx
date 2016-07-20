@@ -6,7 +6,9 @@ module.exports = function(
   this.q = q.value;
 
   this.get = function(model){
-    return self.mvcx.view('Index', {
+    throw new Error('test');
+
+    return self.mvcx.view('index', {
       title: 'My Pets',
       pets: [
         { petId: 1, name: 'Good Doge' },

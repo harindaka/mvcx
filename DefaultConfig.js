@@ -27,7 +27,7 @@ module.exports = {
   },
 
   controllerPath: './controllers',
-  controllerSuffix: 'Controller',
+  controllerSuffix: '-controller',
   viewPath: './views',
   modelPath: './models',
   requestModelSuffix: 'Request',

@@ -3,11 +3,11 @@ module.exports = (function() {
 
     var configMetadata = {
         baseConfig: require('./Config'),
-        environmentIndicatorVariable: 'MY_APP_ENV',
-        environments: {
-            dev: './Config.dev',
-            qa: './Config.qa',
-            prod: './Config.prod'
+        currentConfig: 'dev',
+        configs: {
+            dev: require('./Config.dev'),
+            // qa: require('./Config.qa'),
+            // prod: require('./Config.prod')
         }
     };
 
@@ -16,8 +16,8 @@ module.exports = (function() {
     }*/
     app.initialize(function(error, result) {
         if (error) {
-            app.logger.info('Tests failed.');
-            app.logger.error(error);
+            console.log('Tests failed.');
+            console.log(error);
         }
         else {
             var httpServer = app.createHttpServer();
@@ -44,7 +44,6 @@ module.exports = (function() {
 
             httpServer.listen(3000);
             //httpsServer.listen(443);
-
 
             app.logger.info('Tests completed.');
         }

@@ -35,12 +35,13 @@ module.exports = function(
   }
 
   this.initialize = function(onCompleted){
+    var cluster = null;
     self.q.Promise(function(resolve, reject, notify) {
       try{
         console.log('info: [mvcx] Initializing...');
 
         if(self.mvcxConfig.clusteringEnabled) {
-            var cluster = require('cluster');
+            cluster = require('cluster');
             var http = require('http');
             var numCPUs = require('os').cpus().length;
             var appConfig = null;
@@ -73,7 +74,7 @@ module.exports = function(
           config: self.appConfig
         };
 
-        return resolve(result);
+        resolve(result);
       }
       catch(e){
         var failureMessage = '[mvcx] Intialization failed.';
@@ -87,7 +88,9 @@ module.exports = function(
         reject(e);
       }
     }).then(function(result){
-      onCompleted(null, result);
+      if(cluster === null || !cluster.isMaster) {
+        onCompleted(null, result);
+      }
     }).catch(function(e){
       onCompleted(e, null);
     }).done();
@@ -95,7 +98,7 @@ module.exports = function(
 
   this.createHttpServer = function(options) {
     if(!self.isInitializationSuccessful){
-      throw new Error('[mvcx] Unable create server when mvcx has not been initialized successfully.');
+      throw new Error('[mvcx] Unable create http server when mvcx has not been initialized successfully.');
     }
 
     self.logger.info('[mvcx] Creating http server...');
@@ -112,7 +115,7 @@ module.exports = function(
 
   this.createHttpsServer = function(options) {
     if(!self.isInitializationSuccessful){
-      throw new Error('[mvcx] Unable create server when mvcx has not been initialized successfully.');
+      throw new Error('[mvcx] Unable create https server when mvcx has not been initialized successfully.');
     }
 
     self.logger.info('[mvcx] Creating https server...');
@@ -129,7 +132,7 @@ module.exports = function(
 
   this.createWebSocket = function(server){
     if(!self.isInitializationSuccessful){
-      throw new Error('[mvcx] Unable create server when mvcx has not been initialized successfully.');
+      throw new Error('[mvcx] Unable create web socket server when mvcx has not been initialized successfully.');
     }
 
     self.logger.info('[mvcx] Creating web socket (socket.io) server...');
@@ -260,20 +263,16 @@ module.exports = function(
 
     var merge = require('merge');
 
-    console.log('info: [mvcx] Checking environment configuration indicator...');
-    var environment = null;
-    if(!isEmpty(configMetadata.environmentIndicatorVariable)){
-      environment = process.env[configMetadata.environmentIndicatorVariable];
-    }
+    console.log('info: [mvcx] Checking current environment configuration indicator...');
 
-    if (!isEmpty(environment)) {
-        console.log('info: [mvcx] Loading configuration override for ' + environment + ' environment.');
-        var overrideConfig = require(configMetadata.environmentConfigs[environment]);
+    if (!isEmpty(configMetadata.currentConfig)) {
+        console.log('info: [mvcx] Loading configuration override for ' + configMetadata.currentConfig + ' environment.');
+        var overrideConfig = configMetadata.configs[configMetadata.currentConfig];
         if (!(overrideConfig)) {
             throw new Error('[mvcx] The ' + env + ' environment configuration override is missing.');
         }
 
-        console.log('info: [mvcx] Merging configuration override for ' + environment + ' environment...');
+        console.log('info: [mvcx] Merging configuration override for ' + configMetadata.currentConfig + ' environment...');
         config = merge.recursive(true, baseConfig, overrideConfig);
     }
     else {
@@ -287,9 +286,9 @@ module.exports = function(
     }
 
     console.log('info: [mvcx] Merging mvcx default configuration with specified overrides from the application configuration...');
-    config.mvcx = merge.recursive(true, require('./DefaultConfig'), overriddenMvcxConfig);
-
     var path = require('path');
+    config.mvcx = merge.recursive(true, require(path.join(__dirname, 'DefaultConfig')), overriddenMvcxConfig);
+
     if(!isEmpty(config.mvcx.assets) && !isEmpty(config.mvcx.assets.paths) && config.mvcx.assets.paths.length > 0){
       console.log('info: [mvcx] Resolving asset paths...');
 
