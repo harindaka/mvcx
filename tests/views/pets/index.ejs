@@ -11,7 +11,7 @@
     function calculateTotalAge() {
         var ages = [];
         var petAgeElements = $('.age').each(function(){
-            ages.push($(this).text);
+            ages.push(new Number($(this).text()));
         })
 
         var SumUtil = require('utils.sum-util');
