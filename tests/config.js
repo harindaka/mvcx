@@ -1,5 +1,6 @@
 module.exports = {
   mvcx: {
+    autoRoutesEnabled: true,
     clusteringEnabled: false,
 
     assets: {

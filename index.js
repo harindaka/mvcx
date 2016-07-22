@@ -167,7 +167,7 @@ module.exports = function(
     function initializeCore() {
         self.logger = initializeLogging();
 
-        //Add any data to be utilized in ejs templates in expressApp.locals.mvcx
+        //Add any data / helpers to be utilized within ejs templates to be placed in expressApp.locals.mvcx
         self.expressApp.locals.mvcx = {};
 
         initializeIoc();
@@ -196,7 +196,7 @@ module.exports = function(
     }
 
     function initializeTemplateHelpers() {
-        self.expressApp.locals.mvcx.actionUrl = function (controller, action, options) {
+        self.expressApp.locals.mvcx.actionUrl = function (controller, action, urlParams) {
 
         }
     }
@@ -204,17 +204,13 @@ module.exports = function(
     function initializeRoutes() {
         self.logger.info('[mvcx] Loading routes...');
 
-        var ModuleLoader = require('./ModuleLoader');
-        var moduleLoader = new ModuleLoader();
-        var path = require('path');
+        var routeIndex = createRouteIndex();
 
-        var controllers = moduleLoader.load(path.resolve(self.mvcxConfig.controllerPath), self.mvcxConfig.controllerSuffix);
-
-        if (controllers == null) {
+        if (isEmpty(routeIndex.controllers) || Object.keys(routeIndex.controllers).length === 0) {
             self.logger.info('[mvcx] No controllers were found.');
         }
         else {
-            self.logger.info('[mvcx] Found ' + controllers.length + ' controller(s).');
+            self.logger.info('[mvcx] Found ' + Object.keys(routeIndex.controllers).length + ' controller(s).');
             if (self.mvcxConfig.autoRoutesEnabled) {
                 self.logger.info('[mvcx] Automatic routing enabled.');
             }
@@ -224,52 +220,26 @@ module.exports = function(
 
             var iocContainer = self.mvcxConfig.hooks.ioc;
 
-            var routeIndex = createRouteIndex();
-            self.lazyjs(controllers).each(function (controller) {
+            for(var controllerName in routeIndex.controllersActionsRoutes){
+                if(routeIndex.controllersActionsRoutes.hasOwnProperty(controllerName)){
+                    var controllerModule = routeIndex.controllers[controllerName];
+                    iocContainer.register(controllerModule.moduleName, controllerModule.module, 'perRequest');
 
-                extendController(controller.moduleName, controller.module);
-                if (!isEmpty(routeIndex.controllersActionsRoutes[controller.moduleName])) {
-                    var actionsHash = routeIndex.controllersActionsRoutes[controller.moduleName];
+                    extendController(controllerModule.moduleName, controllerModule.module);
+
+                    var actionsHash = routeIndex.controllersActionsRoutes[controllerName];
                     for(var action in actionsHash){
-                        if(actionsHash.hasOwnProperty(action)){
-                            extendAction(controller.module, action);
-                        }
-                    }
-                }
+                        if(actionsHash.hasOwnProperty(action) && !isEmpty(controllerModule.module.prototype[action])){
+                            extendAction(controllerModule.module, action);
 
-                iocContainer.register(controller.moduleName, controller.module, 'perRequest');
-
-                var routeForGetDefined = false;
-                var routeForPutDefined = false;
-                var routeForPostDefined = false;
-                var routeForDeleteDefined = false;
-                var routeForPatchDefined = false;
-                if (!isEmpty(routeIndex.controllersMethodsRoutes[controller.moduleName])) {
-                    var explicitlyDefinedRouteMethods = routeIndex.controllersMethodsRoutes[controller.moduleName];
-                    routeForGetDefined = !isEmpty(explicitlyDefinedRouteMethods['get']);
-                    routeForPutDefined = !isEmpty(explicitlyDefinedRouteMethods['put']);
-                    routeForPostDefined = !isEmpty(explicitlyDefinedRouteMethods['post']);
-                    routeForDeleteDefined = !isEmpty(explicitlyDefinedRouteMethods['delete']);
-                    routeForPatchDefined = !isEmpty(explicitlyDefinedRouteMethods['patch']);
-
-                    for(var method in explicitlyDefinedRouteMethods){
-                        if(explicitlyDefinedRouteMethods.hasOwnProperty(method)){
-                            var routesArray = explicitlyDefinedRouteMethods[method];
-                            for(var i=0; i < routesArray.length; i++) {
-                                registerControllerBasedRoute(routesArray[i], controller.module.$type);
+                            var routesArray = actionsHash[action];
+                            for(var i = 0; i < routesArray.length; i++){
+                                registerControllerBasedRoute(routesArray[i], controllerModule.module.$type);
                             }
                         }
                     }
                 }
-
-                if (self.mvcxConfig.autoRoutesEnabled) {
-                    if (!routeForGetDefined) registerControllerBasedRoute(createAutoRoute('get', controller), controller.module.$type);
-                    if (!routeForPutDefined) registerControllerBasedRoute(createAutoRoute('put', controller), controller.module.$type);
-                    if (!routeForPostDefined) registerControllerBasedRoute(createAutoRoute('post', controller), controller.module.$type);
-                    if (!routeForDeleteDefined) registerControllerBasedRoute(createAutoRoute('delete', controller), controller.module.$type);
-                    if (!routeForPatchDefined) registerControllerBasedRoute(createAutoRoute('patch', controller), controller.module.$type);
-                }
-            });
+            }
 
             for(var i=0; i < routeIndex.viewRoutes.length; i++){
                 var route = routeIndex.viewRoutes[i];
@@ -433,16 +403,30 @@ module.exports = function(
     function createRouteIndex() {
 
         var routeIndex = {
+            controllers: {},
             controllersActionsRoutes: {},
             controllersMethodsRoutes: {},
             viewRoutes: []
         }
+
+        var ModuleLoader = require('./ModuleLoader');
+        var moduleLoader = new ModuleLoader();
+        var path = require('path');
+
+        var allControllerModules = moduleLoader.load(path.resolve(self.mvcxConfig.controllerPath), self.mvcxConfig.controllerSuffix);
 
         if (!isEmpty(self.mvcxConfig.routes)) {
             for(var i=0; i < self.mvcxConfig.routes.length; i++){
                 var route = self.mvcxConfig.routes[i];
 
                 if (!isEmpty(route.controller)) {
+                    var controllerModule = allControllerModules[route.controller];
+                    if(isEmpty(controllerModule)){
+                        throw new Error('[mvcx] The controller ' + route.controller + ' specified by route ' + route.route + ' was not found.')
+                    }
+
+                    routeIndex.controllers[controllerModule.moduleName] = controllerModule;
+
                     if(isEmpty(routeIndex.controllersActionsRoutes[route.controller])){
                         var actions = {};
                         actions[route.action] = [route];
@@ -482,10 +466,53 @@ module.exports = function(
             }
         }
 
+        if (self.mvcxConfig.autoRoutesEnabled) {
+            for(var controllerName in allControllerModules) {
+                if (allControllerModules.hasOwnProperty(controllerName)) {
+                    var controllerModuleForAutoRoute = allControllerModules[controllerName];
+
+                    var routeForGetDefined = false;
+                    var routeForPutDefined = false;
+                    var routeForPostDefined = false;
+                    var routeForDeleteDefined = false;
+                    var routeForPatchDefined = false;
+                    if (!isEmpty(routeIndex.controllersMethodsRoutes[controllerName])) {
+                        var explicitlyDefinedRouteMethods = routeIndex.controllersMethodsRoutes[controllerName];
+                        routeForGetDefined = !isEmpty(explicitlyDefinedRouteMethods['get']);
+                        routeForPutDefined = !isEmpty(explicitlyDefinedRouteMethods['put']);
+                        routeForPostDefined = !isEmpty(explicitlyDefinedRouteMethods['post']);
+                        routeForDeleteDefined = !isEmpty(explicitlyDefinedRouteMethods['delete']);
+                        routeForPatchDefined = !isEmpty(explicitlyDefinedRouteMethods['patch']);
+                    }
+
+                    var autoRoute = null;
+                    if (!routeForGetDefined) {
+                        indexAutoRoute(routeIndex, 'get', controllerModuleForAutoRoute);
+                    }
+
+                    if (!routeForPutDefined) {
+                        indexAutoRoute(routeIndex, 'put', controllerModuleForAutoRoute);
+                    }
+
+                    if (!routeForPostDefined) {
+                        indexAutoRoute(routeIndex, 'post', controllerModuleForAutoRoute);
+                    }
+
+                    if (!routeForDeleteDefined) {
+                        indexAutoRoute(routeIndex, 'delete', controllerModuleForAutoRoute);
+                    }
+
+                    if (!routeForPatchDefined) {
+                        indexAutoRoute(routeIndex, 'patch', controllerModuleForAutoRoute);
+                    }
+                }
+            }
+        }
+
         return routeIndex;
     }
 
-    function createAutoRoute(method, controllerModule) {
+    function indexAutoRoute(routeIndex, method, controllerModule) {
         var route = {
             method: method,
             route: '/' + controllerModule.modulePrefix,
@@ -502,10 +529,14 @@ module.exports = function(
             route.requestModel = requestModel;
         }
         catch (e) {
-            //File does not exist
+            //File does not exist. Ignore
         }
 
-        return route;
+        if(isEmpty(routeIndex.controllers[controllerModule.moduleName])) routeIndex.controllers[controllerModule.moduleName] = controllerModule;
+        if(isEmpty(routeIndex.controllersMethodsRoutes[controllerModule.moduleName])) routeIndex.controllersMethodsRoutes[controllerModule.moduleName] = {};
+        if(isEmpty(routeIndex.controllersActionsRoutes[controllerModule.moduleName])) routeIndex.controllersActionsRoutes[controllerModule.moduleName] = {};
+        routeIndex.controllersMethodsRoutes[controllerModule.moduleName][method] = [route];
+        routeIndex.controllersActionsRoutes[controllerModule.moduleName][method] = [route];
     }
 
     function extendController(controllerModuleName, controllerModule) {
@@ -556,7 +587,6 @@ module.exports = function(
     function extendAction(controllerModule, actionName) {
         var controllerAction = controllerModule.prototype[actionName];
         controllerModule.prototype[actionName] = function (model, req, res, next) {
-            console.log('Extended action called');
             return controllerAction(model, req, res, next);
         }
     }

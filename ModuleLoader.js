@@ -12,7 +12,7 @@ module.exports = function(){
     var filePaths = getFilesInDirectory(modulePath, regex);
 
     if(filePaths != null){
-      var modules = [];
+      var modules = {};
       self.lazyjs(filePaths).each(function(filePath){
         var module = {
           filePath: filePath,
@@ -24,7 +24,7 @@ module.exports = function(){
         module.moduleSuffix = commonSuffix;
         module.module = require(path.join(modulePath, module.moduleName));
 
-        modules.push(module);
+        modules[module.moduleName] = module;
       });
     }
 

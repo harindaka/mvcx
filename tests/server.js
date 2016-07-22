@@ -14,6 +14,9 @@ module.exports = (function() {
     var app = new MvcxApp(configMetadata); /* Pass optional second argument as {
         expressApp: require('express')()
     }*/
+
+    //Register any middleware using app.expressApp prior to mvcx initialization
+
     app.initialize(function(error, result) {
         if (error) {
             console.log('Tests failed.');
@@ -38,9 +41,7 @@ module.exports = (function() {
             var iocContainer = hooks.ioc;
             iocContainer.register('websocket', {value: websocket}, 'singleton');
 
-            var expressApp = result.expressApp;
-
-            //Register middleware using expressApp
+            //Register middleware using app.expressApp
 
             httpServer.listen(3000);
             //httpsServer.listen(443);
