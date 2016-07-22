@@ -223,13 +223,16 @@ module.exports = function(
             for(var controllerName in routeIndex.controllersActionsRoutes){
                 if(routeIndex.controllersActionsRoutes.hasOwnProperty(controllerName)){
                     var controllerModule = routeIndex.controllers[controllerName];
-                    iocContainer.register(controllerModule.moduleName, controllerModule.module, 'perRequest');
+                    iocContainer.register(controllerName, controllerModule.module, 'perRequest');
+
+                    var metaInstance = iocContainer.resolve(controllerName);
+                    controllerModule.metaInstance = metaInstance;
 
                     extendController(controllerModule.moduleName, controllerModule.module);
 
                     var actionsHash = routeIndex.controllersActionsRoutes[controllerName];
                     for(var action in actionsHash){
-                        if(actionsHash.hasOwnProperty(action) && !isEmpty(controllerModule.module.prototype[action])){
+                        if(actionsHash.hasOwnProperty(action) && typeof(controllerModule.metaInstance[action]) === 'function'){
                             extendAction(controllerModule.module, action);
 
                             var routesArray = actionsHash[action];
@@ -593,18 +596,15 @@ module.exports = function(
 
     function registerControllerBasedRoute(route, controllerType) {
         var iocContainer = self.mvcxConfig.hooks.ioc;
-        var controllerMetadata = iocContainer.resolve(route.controller);
 
-        if (!isEmpty(controllerMetadata[route.action])) {
-            var url = require('url');
-            var formattedRoute = url.resolve(url.resolve(url.resolve('/', self.mvcxConfig.baseUrlPrefix), '/'), route.route);
+        var url = require('url');
+        var formattedRoute = url.resolve(url.resolve(url.resolve('/', self.mvcxConfig.baseUrlPrefix), '/'), route.route);
 
-            self.logger.info('[mvcx] Registering controller action ' + route.controller + '.' + route.action + ' with route ' + formattedRoute + '...');
-            self.expressApp[route.method](formattedRoute, function (req, res, next) {
-                var controller = iocContainer.resolve(route.controller);
-                invokeControllerAction(route, controller, controllerType, req, res, next);
-            });
-        }
+        self.logger.info('[mvcx] Registering controller action ' + route.controller + '.' + route.action + ' with route ' + formattedRoute + '...');
+        self.expressApp[route.method](formattedRoute, function (req, res, next) {
+            var controller = iocContainer.resolve(route.controller);
+            invokeControllerAction(route, controller, controllerType, req, res, next);
+        });
     }
 
     function registerViewBasedRoute(method, route, view) {
