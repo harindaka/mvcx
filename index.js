@@ -196,7 +196,7 @@ module.exports = function(
     }
 
     function initializeTemplateHelpers() {
-        self.expressApp.locals.mvcx.actionUrl = function (controller, action, urlParams) {
+        self.expressApp.locals.mvcx.actionUrl = function (controllerName, action, urlParams) {
 
         }
     }
