@@ -563,27 +563,30 @@ module.exports = function(
 
                         for(var i=0; i < routesArray.length; i++){
                             var modelRoute = routesArray[i];
+                            modelRoute.requestModelSchema = null;
 
-                            var requestModuleName = null;
-                            var modelSpecified = false;
-                            if(!isEmpty(modelRoute.requestModel)){
-                                modelSpecified = true;
-                                requestModuleName = modelRoute.requestModel;
-                            }
-                            else{
-                                requestModuleName = routeIndex.controllers[controllerName].modulePrefix + '-' + actionName + self.mvcxConfig.requestModelSuffix;
-                            }
+                            if(modelRoute.requestModel !== null) {
+                                var requestModuleName = null;
+                                var modelSpecified = false;
+                                if (!isEmpty(modelRoute.requestModel)) {
+                                    modelSpecified = true;
+                                    requestModuleName = modelRoute.requestModel;
+                                }
+                                else {
+                                    requestModuleName = actionName + self.mvcxConfig.requestModelSuffix;
+                                }
 
-                            var path = require('path');
-                            var requestModelFilePath = path.join(path.resolve(self.mvcxConfig.modelPath), requestModuleName);
-                            var fs = require('fs');
-                            try {
-                                //fs.statSync(requestModelFilePath);
-                                modelRoute.requestModelSchema = require(requestModelFilePath);
-                            }
-                            catch (e) {
-                                if(modelSpecified){
-                                    throw new Error("[mvcx] The specified request model was not accessible: '" + requestModelFilePath + "'. Please check whether the file exists and is accessible.")
+                                var path = require('path');
+                                var requestModelFilePath = path.join(path.resolve(self.mvcxConfig.modelPath), routeIndex.controllers[controllerName].modulePrefix, requestModuleName);
+                                var fs = require('fs');
+                                try {
+                                    //fs.statSync(requestModelFilePath);
+                                    modelRoute.requestModelSchema = require(requestModelFilePath);
+                                }
+                                catch (e) {
+                                    if (modelSpecified) {
+                                        throw new Error("[mvcx] The specified request model '" + modelRoute.requestModel + "' was not accessible at '" + requestModelFilePath + "'. Please check whether the file exists and is accessible.")
+                                    }
                                 }
                             }
                         }

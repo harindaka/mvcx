@@ -34,7 +34,7 @@ module.exports = {
 
     routes: [
       { method: 'get', route: '/books/:bookId', controller: 'books-controller', action: 'retrieve' },
-      { method: 'get', route: '/books', controller: 'books-controller', action: 'retrieve' },
+      { method: 'get', route: '/books', controller: 'books-controller', action: 'retrieve', requestModel: null },
       { method: 'post', route: '/books', controller: 'books-controller', action: 'create' },
       { method: 'get', route: '/', view: 'static/home' }
     ]
