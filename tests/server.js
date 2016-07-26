@@ -1,19 +1,22 @@
 module.exports = (function() {
     var MvcxApp = require('../index');
 
-    var configMetadata = {
-        baseConfig: require('./config'),
-        currentConfig: 'dev',
-        configs: {
-            dev: require('./config-dev'),
-            // qa: require('./config-qa'),
-            // prod: require('./config-prod')
+    var options = {
+        configuration: {
+            base: require('./config'),
+            current: 'dev',
+            overrides: {
+                dev: require('./config-dev'),
+                // qa: require('./config-qa'),
+                // prod: require('./config-prod')
+            }
         }
-    };
+        //expressApp: require('express')() //To override the underlying express npm used by mvcx
+    }
 
-    var app = new MvcxApp(configMetadata); /* Pass optional second argument as {
-        expressApp: require('express')()
-    }*/
+    var app = new MvcxApp(options, function(container){
+        container.register('q', { value: require('q') }, 'singleton');
+    });
 
     //Register any middleware using app.expressApp prior to mvcx initialization
 
@@ -33,20 +36,22 @@ module.exports = (function() {
                 cert: fs.readFileSync('test/fixtures/keys/agent2-cert.cert')
              }
              var httpsServer = app.createHttpsServer(options);
-             */
+            */
             var websocket = app.createWebSocket(httpServer);
 
             var hooks = result.config.mvcx.hooks;
 
             var iocContainer = hooks.ioc;
-            iocContainer.register('websocket', {value: websocket}, 'singleton');
+            iocContainer.register('config', { value: result.config }, 'singleton');
+            iocContainer.register('logger', { value: result.logger }, 'singleton');
+            iocContainer.register('websocket', { value: websocket }, 'singleton');
 
             //Register middleware using app.expressApp
 
             httpServer.listen(3000);
             //httpsServer.listen(443);
 
-            app.logger.info('Tests completed.');
+            result.logger.info('Tests completed.');
         }
     });
 })();

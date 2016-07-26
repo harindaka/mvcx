@@ -1,9 +1,10 @@
 module.exports = function(
-    configMetadata,
-    options
+    options,
+    compose
 ) {
     var self = this;
 
+    this.compose = compose;
     this.q = require('q');
     this.lazyjs = require('lazy.js');
     this.expressApp = null;
@@ -21,7 +22,7 @@ module.exports = function(
     }
 
     this.mvcxConfig = null;
-    this.appConfig = mergeConfig(configMetadata);
+    this.appConfig = mergeConfig(options.configuration);
     this.mvcxConfig = self.appConfig.mvcx;
 
     if (typeof(options) !== 'undefined' && options !== null) {
@@ -43,7 +44,6 @@ module.exports = function(
 
                 if (self.mvcxConfig.clusteringEnabled) {
                     cluster = require('cluster');
-                    var http = require('http');
                     var numCPUs = require('os').cpus().length;
                     var appConfig = null;
 
@@ -72,7 +72,8 @@ module.exports = function(
 
                 var result = {
                     expressApp: self.expressApp,
-                    config: self.appConfig
+                    config: self.appConfig,
+                    logger: self.logger
                 };
 
                 resolve(result);
@@ -104,7 +105,7 @@ module.exports = function(
 
         self.logger.info('[mvcx] Creating http server...');
 
-        var http = self.mvcxConfig.hooks.ioc.resolve('http').value;
+        var http = require('http');
         var server = http.createServer(self.expressApp);
 
         self.logger.info('[mvcx] Http server created.');
@@ -121,7 +122,7 @@ module.exports = function(
 
         self.logger.info('[mvcx] Creating https server...');
 
-        var https = self.mvcxConfig.hooks.ioc.resolve('https').value;
+        var https = require('https');
         var server = https.createServer(options, self.expressApp);
 
         self.logger.info('[mvcx] Https server created.');
@@ -138,7 +139,7 @@ module.exports = function(
 
         self.logger.info('[mvcx] Creating web socket (socket.io) server...');
 
-        var socketio = self.mvcxConfig.hooks.ioc.resolve('socket.io').value;
+        var socketio = require('socket.io');
         return socketio(server);
 
         self.logger.info('[mvcx] Web socket server created.');
@@ -171,7 +172,12 @@ module.exports = function(
         //Add any data / helpers to be utilized within ejs templates to be placed in expressApp.locals.mvcx
         self.expressApp.locals.mvcx = {};
 
-        initializeIoc();
+        if(typeof(self.compose) === 'function' && !isEmpty(self.mvcxConfig.hooks.ioc)){
+
+            self.logger.info('[mvcx] Composing application dependencies...');
+            self.compose(self.mvcxConfig.hooks.ioc);
+            self.logger.info('[mvcx] Completed composing application dependencies successfully.');
+        }
 
         initializeExpress();
 
@@ -310,12 +316,12 @@ module.exports = function(
         self.logger.info('[mvcx] Loading routes completed.');
     };
 
-    function mergeConfig(configMetadata) {
+    function mergeConfig(configOptions) {
         var environment;
         var config;
         console.log('info: [mvcx] Initializing configuration...');
 
-        var baseConfig = configMetadata.baseConfig;
+        var baseConfig = configOptions.base;
         if (typeof(baseConfig) === 'undefined' || baseConfig == null) {
             baseConfig = {};
         }
@@ -324,14 +330,14 @@ module.exports = function(
 
         console.log('info: [mvcx] Checking current environment configuration indicator...');
 
-        if (!isEmpty(configMetadata.currentConfig)) {
-            console.log('info: [mvcx] Loading configuration override for ' + configMetadata.currentConfig + ' environment.');
-            var overrideConfig = configMetadata.configs[configMetadata.currentConfig];
+        if (!isEmpty(configOptions.current)) {
+            console.log('info: [mvcx] Loading configuration override for ' + configOptions.current + ' environment.');
+            var overrideConfig = configOptions.overrides[configOptions.current];
             if (!(overrideConfig)) {
                 throw new Error('[mvcx] The ' + env + ' environment configuration override is missing.');
             }
 
-            console.log('info: [mvcx] Merging configuration override for ' + configMetadata.currentConfig + ' environment...');
+            console.log('info: [mvcx] Merging configuration override for ' + configOptions.current + ' environment...');
             config = merge.recursive(true, baseConfig, overrideConfig);
         }
         else {
@@ -368,31 +374,11 @@ module.exports = function(
         return (typeof (val) === 'undefined' || val == null);
     }
 
-    function initializeIoc() {
-        self.logger.info('[mvcx] Registering dependencies...');
-
-        var ioc = self.mvcxConfig.hooks.ioc;
-        ioc.register('expressApp', {value: self.expressApp}, 'singleton');
-        ioc.register('config', {value: self.appConfig}, 'singleton');
-        ioc.register('logger', {value: self.logger}, 'singleton');
-        ioc.register('q', {value: self.q}, 'singleton');
-        ioc.register('compression', {value: require('compression')}, 'singleton');
-        ioc.register('body-parser', {value: require('body-parser')}, 'singleton');
-        ioc.register('http', {value: require('http')}, 'singleton');
-        ioc.register('https', {value: require('https')}, 'singleton');
-        ioc.register('socket.io', {value: require('socket.io')}, 'singleton');
-        ioc.register('merge', {value: require('merge')}, 'singleton');
-        ioc.register('lazy.js', {value: require('lazy.js')}, 'singleton');
-
-        self.logger.info('[mvcx] Dependency registration completed.');
-    }
-
     function initializeExpress() {
         self.logger.info('[mvcx] Creating express app...');
         var path = require('path');
         var iocContainer = self.mvcxConfig.hooks.ioc;
-        var expressApp = iocContainer.resolve('expressApp').value;
-        expressApp.locals.mvcx.config = self.appConfig;
+        self.expressApp.locals.mvcx.config = self.appConfig;
 
         self.logger.info('[mvcx] Registering standard middleware...');
 
@@ -401,13 +387,13 @@ module.exports = function(
         }
         else {
             self.logger.info('[mvcx] Registering view engine...');
-            expressApp.set('view engine', self.mvcxConfig.viewEngine);
-            expressApp.set('views', path.resolve(self.mvcxConfig.viewPath));
+            self.expressApp.set('view engine', self.mvcxConfig.viewEngine);
+            self.expressApp.set('views', path.resolve(self.mvcxConfig.viewPath));
         }
 
         if (self.mvcxConfig.compressionEnabled) {
-            var compress = iocContainer.resolve('compression').value;
-            expressApp.use(compress());
+            var compress = require('compression');
+            self.expressApp.use(compress());
             self.logger.info('[mvcx] Gzip compression is enabled.');
         }
         else {
@@ -415,13 +401,11 @@ module.exports = function(
         }
 
         self.logger.info('[mvcx] Registering body parser with url encoding and json support...');
-        var bodyParser = iocContainer.resolve('body-parser').value;
-        expressApp.use(bodyParser.urlencoded({extended: false}));
-        expressApp.use(bodyParser.json({limit: (self.mvcxConfig.requestLimitKB) + "kb"}));
+        var bodyParser = require('body-parser');
+        self.expressApp.use(bodyParser.urlencoded({extended: false}));
+        self.expressApp.use(bodyParser.json({limit: (self.mvcxConfig.requestLimitKB) + "kb"}));
 
         self.logger.info('[mvcx] Standard middleware registration completed.');
-
-        return expressApp;
     }
 
     function initializeLogging() {
@@ -673,7 +657,7 @@ module.exports = function(
 
     function invokeControllerAction(route, controller, controllerType, req, res, next) {
         try {
-            var merge = self.mvcxConfig.hooks.ioc.resolve('merge').value;
+            var merge = require('merge');
             var model = merge.recursive(true, req.query, req.params);
             model = merge.recursive(true, model, req.body);
 
