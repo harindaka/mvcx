@@ -8,6 +8,7 @@ module.exports = function(
     this.lazyjs = require('lazy.js');
     this.expressApp = null;
     this.logger = null;
+    this.routeIndex = null;
     this.isInitializationSuccessful = false;
     this.responseTypes = {
         VoidResponse: require('./VoidResponse'),
@@ -196,21 +197,77 @@ module.exports = function(
     }
 
     function initializeTemplateHelpers() {
-        self.expressApp.locals.mvcx.actionUrl = function (controllerName, action, urlParams) {
+        self.expressApp.locals.mvcx.actionUrl = function (controller, action, routeParams) {
 
+            var actions = self.routeIndex.controllersActionsRoutes[controller];
+            if(isEmpty(actions)){
+                throw new Error("[mvcx] The specified controller '" + controller + "' does not exist." );
+            }
+
+            var routesArray = actions[action];
+            if(isEmpty(routesArray)){
+                throw new Error("[mvcx] The specified action '" + action + "' does not exist in controller '" + controller + "'." );
+            }
+
+            var urls = [];
+            var UrlBuilder = require('url-assembler');
+
+            var regexForUrlWithPathParams = null;
+            var route = null;
+            var builder = new UrlBuilder();
+            if(isEmpty(routeParams)){
+                builder = builder.template(routesArray[0].route);
+            }
+            else {
+
+                if (!isEmpty(routeParams.path) && Object.keys(routeParams.path).length > 0) {
+                    regexForUrlWithPathParams = "^.*";
+                    for (var pathParam in routeParams.path) {
+                        if (routeParams.path.hasOwnProperty(pathParam)) {
+                            regexForUrlWithPathParams += "(?=.*\\/:" + pathParam + "(\\/|$))"
+                        }
+                    }
+
+                    regexForUrlWithPathParams += ".*$";
+
+                    for (var i = 0; i < routesArray.length; i++) {
+                        var regex = new RegExp(regexForUrlWithPathParams, 'g');
+                        if (regex.test(routesArray[i].route)) {
+                            route = routesArray[i].route;
+                            break;
+                        }
+                    }
+
+                    if (route === null) {
+                        throw new Error("[mvcx] No routes were found matching the specified path parameters '" + JSON.stringify(routeParams.path) + "' for action '" + action + "' in controller '" + controller + "'.");
+                    }
+
+                    builder = builder.template(route);
+                    builder = builder.param(routeParams.path);
+                }
+                else{
+                    builder = builder.template(routesArray[0].route);
+                }
+
+                if (!isEmpty(routeParams.query)) {
+                    builder = builder.query(routeParams.query);
+                }
+            }
+
+            return builder.toString();
         }
     }
 
     function initializeRoutes() {
         self.logger.info('[mvcx] Loading routes...');
 
-        var routeIndex = createRouteIndex();
+        self.routeIndex = createRouteIndex();
 
-        if (isEmpty(routeIndex.controllers) || Object.keys(routeIndex.controllers).length === 0) {
+        if (isEmpty(self.routeIndex.controllers) || Object.keys(self.routeIndex.controllers).length === 0) {
             self.logger.info('[mvcx] No controllers were found.');
         }
         else {
-            self.logger.info('[mvcx] Found ' + Object.keys(routeIndex.controllers).length + ' controller(s).');
+            self.logger.info('[mvcx] Found ' + Object.keys(self.routeIndex.controllers).length + ' controller(s).');
             if (self.mvcxConfig.autoRoutesEnabled) {
                 self.logger.info('[mvcx] Automatic routing enabled.');
             }
@@ -220,9 +277,9 @@ module.exports = function(
 
             var iocContainer = self.mvcxConfig.hooks.ioc;
 
-            for(var controllerName in routeIndex.controllersActionsRoutes){
-                if(routeIndex.controllersActionsRoutes.hasOwnProperty(controllerName)){
-                    var controllerModule = routeIndex.controllers[controllerName];
+            for(var controllerName in self.routeIndex.controllersActionsRoutes){
+                if(self.routeIndex.controllersActionsRoutes.hasOwnProperty(controllerName)){
+                    var controllerModule = self.routeIndex.controllers[controllerName];
                     iocContainer.register(controllerName, controllerModule.module, 'perRequest');
 
                     var metaInstance = iocContainer.resolve(controllerName);
@@ -230,7 +287,7 @@ module.exports = function(
 
                     extendController(controllerModule.moduleName, controllerModule.module);
 
-                    var actionsHash = routeIndex.controllersActionsRoutes[controllerName];
+                    var actionsHash = self.routeIndex.controllersActionsRoutes[controllerName];
                     for(var action in actionsHash){
                         if(actionsHash.hasOwnProperty(action) && typeof(controllerModule.metaInstance[action]) === 'function'){
                             extendAction(controllerModule.module, action);
@@ -244,8 +301,8 @@ module.exports = function(
                 }
             }
 
-            for(var i=0; i < routeIndex.viewRoutes.length; i++){
-                var route = routeIndex.viewRoutes[i];
+            for(var i=0; i < self.routeIndex.viewRoutes.length; i++){
+                var route = self.routeIndex.viewRoutes[i];
                 registerViewBasedRoute(route.method, route.route, route.view);
             }
         }
@@ -335,7 +392,7 @@ module.exports = function(
         var path = require('path');
         var iocContainer = self.mvcxConfig.hooks.ioc;
         var expressApp = iocContainer.resolve('expressApp').value;
-        expressApp.locals.config = self.appConfig;
+        expressApp.locals.mvcx.config = self.appConfig;
 
         self.logger.info('[mvcx] Registering standard middleware...');
 

@@ -6,6 +6,11 @@
 <body>
   <h1>Welcome to MVCX</h1>
   <%= Date() %>
-  <p><%= 'Current view engine is ' + config.mvcx.viewEngine + '.'%></p>
+  <p><%= 'Current view engine is ' + mvcx.config.mvcx.viewEngine + '.'%></p>
+  <p>
+    <a href="<%= mvcx.actionUrl('books-controller', 'retrieve', { path: { bookId: 1 }, query: { top: 100 }})%>">API Controller Sample</a>
+    &nbsp;
+    <a href="<%= mvcx.actionUrl('pets-controller', 'get')%>">View Controller Sample</a>
+  </p>
 </body>
 </html>

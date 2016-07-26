@@ -6,8 +6,6 @@ module.exports = function(
   this.q = q.value;
 
   this.retrieve = function(model){
-    console.log(this.q);
-
     return [
       { bookId: 1, name: 'Harry Potter' },
       { bookId: 2, name: 'Game of Thrones' }
