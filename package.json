@@ -26,6 +26,7 @@
     "mvcx"
   ],
   "dependencies": {
+    "ajv": "4.2.0",
     "body-parser": "1.14.1",
     "browserify-middleware": "7.0.0",
     "compression": "1.6.0",
@@ -38,7 +39,7 @@
     "q": "1.4.1",
     "socket.io": "1.3.7",
     "urijs": "1.18.1",
-    "url-assembler": "^1.2.4",
+    "url-assembler": "1.2.4",
     "winston": "2.1.0"
   }
 }

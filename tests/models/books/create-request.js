@@ -1,13 +1,13 @@
 module.exports = {
-    fromBody: {
+    body: {
 
     },
 
-    fromUrl: {
+    path: {
 
     },
 
-    fromQuery: {
+    query: {
 
     }
 }
