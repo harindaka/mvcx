@@ -553,6 +553,45 @@ module.exports = function(
             }
         }
 
+        for(var controllerName in routeIndex.controllersActionsRoutes){
+            if(routeIndex.controllersActionsRoutes.hasOwnProperty(controllerName)){
+                var actions = routeIndex.controllersActionsRoutes[controllerName];
+
+                for(var actionName in actions){
+                    if(actions.hasOwnProperty(actionName)){
+                        var routesArray = actions[actionName];
+
+                        for(var i=0; i < routesArray.length; i++){
+                            var modelRoute = routesArray[i];
+
+                            var requestModuleName = null;
+                            var modelSpecified = false;
+                            if(!isEmpty(modelRoute.requestModel)){
+                                modelSpecified = true;
+                                requestModuleName = modelRoute.requestModel;
+                            }
+                            else{
+                                requestModuleName = routeIndex.controllers[controllerName].modulePrefix + '-' + actionName + self.mvcxConfig.requestModelSuffix;
+                            }
+
+                            var path = require('path');
+                            var requestModelFilePath = path.join(path.resolve(self.mvcxConfig.modelPath), requestModuleName);
+                            var fs = require('fs');
+                            try {
+                                //fs.statSync(requestModelFilePath);
+                                modelRoute.requestModelSchema = require(requestModelFilePath);
+                            }
+                            catch (e) {
+                                if(modelSpecified){
+                                    throw new Error("[mvcx] The specified request model was not accessible: '" + requestModelFilePath + "'. Please check whether the file exists and is accessible.")
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         return routeIndex;
     }
 
@@ -563,18 +602,6 @@ module.exports = function(
             controller: controllerModule.moduleName,
             action: method
         };
-
-        var requestModel = controllerModule.modulePrefix + method.charAt(0).toUpperCase() + method.substr(1) + self.mvcxConfig.requestModelSuffix;
-        var path = require('path');
-        var fs = require('fs');
-        var modelPath = path.join(path.resolve(self.mvcxConfig.modelPath), requestModel + '.js')
-        try {
-            fs.statSync(modelPath);
-            route.requestModel = requestModel;
-        }
-        catch (e) {
-            //File does not exist. Ignore
-        }
 
         if(isEmpty(routeIndex.controllers[controllerModule.moduleName])) routeIndex.controllers[controllerModule.moduleName] = controllerModule;
         if(isEmpty(routeIndex.controllersMethodsRoutes[controllerModule.moduleName])) routeIndex.controllersMethodsRoutes[controllerModule.moduleName] = {};
@@ -657,9 +684,7 @@ module.exports = function(
 
     function invokeControllerAction(route, controller, controllerType, req, res, next) {
         try {
-            var merge = require('merge');
-            var model = merge.recursive(true, req.query, req.params);
-            model = merge.recursive(true, model, req.body);
+            var model = createRequestModel(null, req);
 
             var result = controller[route.action](model, req, res, next);
             if (!isEmpty(result) && self.q.isPromise(result)) {
@@ -676,6 +701,13 @@ module.exports = function(
         catch (e) {
             createErrorResponse(controllerType, e, res);
         }
+    }
+
+    function createRequestModel(modelSchema, req){
+
+        var merge = require('merge');
+        var model = merge.recursive(true, req.query, req.params);
+        return merge.recursive(true, model, req.body);
     }
 
     function createSuccessResponse(controllerType, response, res) {

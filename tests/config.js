@@ -30,11 +30,12 @@ module.exports = {
 
     controllerPath: './tests/controllers',
     viewPath: './tests/views',
+    modelPath: './tests/models',
 
     routes: [
       { method: 'get', route: '/books/:bookId', controller: 'books-controller', action: 'retrieve' },
       { method: 'get', route: '/books', controller: 'books-controller', action: 'retrieve' },
-      { method: 'post', route: '/books', controller: 'books-controller', action: 'create', requestModel: 'BooksCreateRequest' },
+      { method: 'post', route: '/books', controller: 'books-controller', action: 'create' },
       { method: 'get', route: '/', view: 'static/home' }
     ]
   }

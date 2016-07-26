@@ -11,6 +11,10 @@ module.exports = function(
       { bookId: 2, name: 'Game of Thrones' }
     ];
   };
+
+  this.create = function(model){
+    return model;
+  }
 };
 
 module.exports.$type = 'api'

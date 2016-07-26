@@ -14,7 +14,7 @@ module.exports = {
     controllerType: 'mvc',
     viewPath: './views',
     modelPath: './models',
-    requestModelSuffix: 'Request',
+    requestModelSuffix: '-request',
     baseUrlPrefix: '',
     routes: null,
 
