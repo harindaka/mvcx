@@ -1,10 +1,8 @@
-module.exports = function(
-    options,
-    compose
+let ApplicationFactory = function(
+    options
 ) {
     var self = this;
-
-    this.compose = compose;
+    
     this.q = require('q');
     this.lazyjs = require('lazy.js');
     this.express = null;
@@ -36,7 +34,7 @@ module.exports = function(
         this.express = express();
     }
 
-    this.initialize = function (onCompleted) {
+    this.create = function (onCompleted) {
         var cluster = null;
         self.q.Promise(function (resolve, reject, notify) {
             try {
@@ -62,21 +60,22 @@ module.exports = function(
                             console.log('info: [mvcx] Worker process with process id ' + worker.process.pid + ' terminated.');
                         });
                     } else {
-                        initializeCore();
+                        initialize();
                     }
                 }
                 else {
                     console.log('info: [mvcx] Clustering is disabled.');
-                    initializeCore();
+                    initialize();
                 }
 
-                var result = {
+                let newApp = {
                     express: self.express,
                     config: self.appConfig,
-                    logger: self.logger
+                    logger: self.logger,
+                    container: self.mvcxConfig.hooks.ioc
                 };
 
-                resolve(result);
+                resolve(newApp);
             }
             catch (e) {
                 reject(e);
@@ -98,7 +97,7 @@ module.exports = function(
         }).done();
     };
 
-    this.createHttpServer = function (options) {
+    this.createHttp = function (options) {
         if (!self.isInitializationSuccessful) {
             throw new Error('[mvcx] Unable create http server when mvcx has not been initialized successfully.');
         }
@@ -115,7 +114,7 @@ module.exports = function(
         return server;
     };
 
-    this.createHttpsServer = function (options) {
+    this.createHttps = function (options) {
         if (!self.isInitializationSuccessful) {
             throw new Error('[mvcx] Unable create https server when mvcx has not been initialized successfully.');
         }
@@ -132,7 +131,7 @@ module.exports = function(
         return server;
     };
 
-    this.createWebSocket = function (server) {
+    this.createSocketIO = function (server) {
         if (!self.isInitializationSuccessful) {
             throw new Error('[mvcx] Unable create web socket server when mvcx has not been initialized successfully.');
         }
@@ -166,7 +165,7 @@ module.exports = function(
         }
     }
 
-    function initializeCore() {
+    function initialize() {
         self.logger = initializeLogging();
 
         //Add any data / helpers to be utilized within ejs templates to be placed in express.locals.mvcx
@@ -456,7 +455,7 @@ module.exports = function(
         var ModuleLoader = require('./ModuleLoader');
         var moduleLoader = new ModuleLoader();
         var path = require('path');
-
+        
         var allControllerModules = moduleLoader.load(path.resolve(self.mvcxConfig.controllerPath), self.mvcxConfig.controllerSuffix);
 
         if (!isEmpty(self.mvcxConfig.routes)) {
@@ -865,3 +864,9 @@ module.exports = function(
         express.locals.mvcx.assets[route] = url.toString();
     }
 };
+
+module.exports = {
+    ApplicationFactory: (options) => {
+        return new ApplicationFactory(options);
+    }
+}

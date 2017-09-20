@@ -1,9 +1,9 @@
 module.exports = function(
-  q
+  fs
 ){
   var self = this;
 
-  this.q = q.value;
+  this.fs = fs.dep;
 
   this.retrieve = function(model){
     return [
@@ -19,7 +19,7 @@ module.exports = function(
 
 module.exports.$type = 'api'
 module.exports.$inject = [
-  'q'
+  'fs'
 ];
 
 

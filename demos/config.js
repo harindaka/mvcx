@@ -1,4 +1,6 @@
 module.exports = {
+  port: 3000,
+  
   mvcx: {
     autoRoutesEnabled: true,
     clusteringEnabled: false,
@@ -28,9 +30,9 @@ module.exports = {
       }
     },
 
-    controllerPath: './tests/controllers',
-    viewPath: './tests/views',
-    modelPath: './tests/models',
+    controllerPath: './demos/controllers',
+    viewPath: './demos/views',
+    modelPath: './demos/models',
 
     routes: [
       { method: 'get', route: '/books/:bookId', controller: 'books-controller', action: 'retrieve' },
