@@ -1,5 +1,5 @@
 module.exports = (function() {
-    var MvcxApp = require('../index');
+    var MvcxApp = require('../src/index');
 
     var options = {
         configuration: {
@@ -11,14 +11,14 @@ module.exports = (function() {
                 // prod: require('./config-prod')
             }
         }
-        //expressApp: require('express')() //To override the underlying express npm used by mvcx
+        //express: require('express')() //To override the underlying express npm used by mvcx
     }
 
     var app = new MvcxApp(options, function(container){
         container.register('q', { value: require('q') }, 'singleton');
     });
 
-    //Register any middleware using app.expressApp prior to mvcx initialization
+    //Register any middleware using app.express prior to mvcx initialization
 
     app.initialize(function(error, result) {
         if (error) {
@@ -46,7 +46,7 @@ module.exports = (function() {
             iocContainer.register('logger', { value: result.logger }, 'singleton');
             iocContainer.register('websocket', { value: websocket }, 'singleton');
 
-            //Register middleware using app.expressApp
+            //Register middleware using app.express
 
             httpServer.listen(3000);
             //httpsServer.listen(443);

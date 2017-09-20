@@ -7,7 +7,7 @@ module.exports = function(
     this.compose = compose;
     this.q = require('q');
     this.lazyjs = require('lazy.js');
-    this.expressApp = null;
+    this.express = null;
     this.logger = null;
     this.routeIndex = null;
     this.isInitializationSuccessful = false;
@@ -26,14 +26,14 @@ module.exports = function(
     this.mvcxConfig = self.appConfig.mvcx;
 
     if (typeof(options) !== 'undefined' && options !== null) {
-        if (options.expressApp) {
-            this.expressApp = options.expressApp;
+        if (options.express) {
+            this.express = options.express;
         }
     }
 
-    if (this.expressApp === null) {
+    if (this.express === null) {
         var express = require('express');
-        this.expressApp = express();
+        this.express = express();
     }
 
     this.initialize = function (onCompleted) {
@@ -71,7 +71,7 @@ module.exports = function(
                 }
 
                 var result = {
-                    expressApp: self.expressApp,
+                    express: self.express,
                     config: self.appConfig,
                     logger: self.logger
                 };
@@ -106,7 +106,7 @@ module.exports = function(
         self.logger.info('[mvcx] Creating http server...');
 
         var http = require('http');
-        var server = http.createServer(self.expressApp);
+        var server = http.createServer(self.express);
 
         self.logger.info('[mvcx] Http server created.');
 
@@ -123,7 +123,7 @@ module.exports = function(
         self.logger.info('[mvcx] Creating https server...');
 
         var https = require('https');
-        var server = https.createServer(options, self.expressApp);
+        var server = https.createServer(options, self.express);
 
         self.logger.info('[mvcx] Https server created.');
 
@@ -169,8 +169,8 @@ module.exports = function(
     function initializeCore() {
         self.logger = initializeLogging();
 
-        //Add any data / helpers to be utilized within ejs templates to be placed in expressApp.locals.mvcx
-        self.expressApp.locals.mvcx = {};
+        //Add any data / helpers to be utilized within ejs templates to be placed in express.locals.mvcx
+        self.express.locals.mvcx = {};
 
         if(typeof(self.compose) === 'function' && !isEmpty(self.mvcxConfig.hooks.ioc)){
 
@@ -191,19 +191,19 @@ module.exports = function(
     }
 
     function initializeAssets() {
-        self.expressApp.locals.mvcx.assets = {};
+        self.express.locals.mvcx.assets = {};
         if (!isEmpty(self.mvcxConfig.assets)) {
             for (var route in self.mvcxConfig.assets) {
                 if (self.mvcxConfig.assets.hasOwnProperty(route)) {
                     var assetConfig = self.mvcxConfig.assets[route];
-                    registerAsset(self.expressApp, route, assetConfig);
+                    registerAsset(self.express, route, assetConfig);
                 }
             }
         }
     }
 
     function initializeTemplateHelpers() {
-        self.expressApp.locals.mvcx.actionUrl = function (controller, action, routeParams) {
+        self.express.locals.mvcx.actionUrl = function (controller, action, routeParams) {
 
             var actions = self.routeIndex.controllersActionsRoutes[controller];
             if(isEmpty(actions)){
@@ -378,7 +378,7 @@ module.exports = function(
         self.logger.info('[mvcx] Creating express app...');
         var path = require('path');
         var iocContainer = self.mvcxConfig.hooks.ioc;
-        self.expressApp.locals.mvcx.config = self.appConfig;
+        self.express.locals.mvcx.config = self.appConfig;
 
         self.logger.info('[mvcx] Registering standard middleware...');
 
@@ -387,13 +387,13 @@ module.exports = function(
         }
         else {
             self.logger.info('[mvcx] Registering view engine...');
-            self.expressApp.set('view engine', self.mvcxConfig.viewEngine);
-            self.expressApp.set('views', path.resolve(self.mvcxConfig.viewPath));
+            self.express.set('view engine', self.mvcxConfig.viewEngine);
+            self.express.set('views', path.resolve(self.mvcxConfig.viewPath));
         }
 
         if (self.mvcxConfig.compressionEnabled) {
             var compress = require('compression');
-            self.expressApp.use(compress());
+            self.express.use(compress());
             self.logger.info('[mvcx] Gzip compression is enabled.');
         }
         else {
@@ -402,8 +402,8 @@ module.exports = function(
 
         self.logger.info('[mvcx] Registering body parser with url encoding and json support...');
         var bodyParser = require('body-parser');
-        self.expressApp.use(bodyParser.urlencoded({extended: false}));
-        self.expressApp.use(bodyParser.json({limit: (self.mvcxConfig.requestLimitKB) + "kb"}));
+        self.express.use(bodyParser.urlencoded({extended: false}));
+        self.express.use(bodyParser.json({limit: (self.mvcxConfig.requestLimitKB) + "kb"}));
 
         self.logger.info('[mvcx] Standard middleware registration completed.');
     }
@@ -672,7 +672,7 @@ module.exports = function(
         var formattedRoute = url.resolve(url.resolve(url.resolve('/', self.mvcxConfig.baseUrlPrefix), '/'), route.route);
 
         self.logger.info('[mvcx] Registering controller action ' + route.controller + '.' + route.action + ' with route ' + formattedRoute + '...');
-        self.expressApp[route.method](formattedRoute, function (req, res, next) {
+        self.express[route.method](formattedRoute, function (req, res, next) {
             var controller = iocContainer.resolve(route.controller);
             invokeControllerAction(route, controller, controllerType, req, res, next);
         });
@@ -680,7 +680,7 @@ module.exports = function(
 
     function registerViewBasedRoute(method, route, view) {
         self.logger.info('[mvcx] Registering view ' + view + ' with route ' + route + '...');
-        self.expressApp[method](route, function (req, res, next) {
+        self.express[method](route, function (req, res, next) {
             res.render(view);
         });
     }
@@ -781,14 +781,14 @@ module.exports = function(
         errorHandlerHook.createResponse(self.appConfig, hookOptions);
     }
 
-    function registerAsset(expressApp, route, assetConfig) {
+    function registerAsset(express, route, assetConfig) {
         var fingerprintQueryKey = '__fingerprint';
         var rdType = typeof(assetConfig);
         if (rdType === 'string') {
             var path = require('path');
             var assetFile = path.resolve(assetConfig);
-            fingerprintAsset(expressApp, route, [assetFile], fingerprintQueryKey);
-            expressApp.get(route, function (req, res) {
+            fingerprintAsset(express, route, [assetFile], fingerprintQueryKey);
+            express.get(route, function (req, res) {
                 res.sendFile(assetFile);
             });
         }
@@ -820,11 +820,11 @@ module.exports = function(
 
                     browserifyOptions.precompile = true;
                     browserifyOptions.postcompile = function (source) {
-                        fingerprintAsset(expressApp, route, source, fingerprintQueryKey);
+                        fingerprintAsset(express, route, source, fingerprintQueryKey);
                         return source;
                     };
 
-                    expressApp.get(route, browserify(browserifyModules, browserifyOptions));
+                    express.get(route, browserify(browserifyModules, browserifyOptions));
                 }
                 else {
                     throw new Error('[mvcx] Invalid route definition specified for asset ' + route + '.');
@@ -839,7 +839,7 @@ module.exports = function(
         }
     }
 
-    function fingerprintAsset(expressApp, route, filesOrData, query) {
+    function fingerprintAsset(express, route, filesOrData, query) {
         var Uri = require('urijs');
         var url = new Uri(route);
 
@@ -862,6 +862,6 @@ module.exports = function(
             }
         }
 
-        expressApp.locals.mvcx.assets[route] = url.toString();
+        express.locals.mvcx.assets[route] = url.toString();
     }
 };
