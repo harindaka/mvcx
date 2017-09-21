@@ -36,9 +36,7 @@ module.exports = (function() {
     }
     
     let mvcx = require('../src/index');
-    mvcx.compose(options, () => {
-        
-    }).create((error, app) => {
+    mvcx.ApplicationFactory(options).create((error, app) => {
         if (error) {
             console.log('Application composition failed due to error: ' + error.message);
             console.log(error);

@@ -285,16 +285,19 @@ let ApplicationFactory = function(
             for(var controllerName in self.routeIndex.controllersActionsRoutes){
                 if(self.routeIndex.controllersActionsRoutes.hasOwnProperty(controllerName)){
                     var controllerModule = self.routeIndex.controllers[controllerName];
-                    iocContainer.register(controllerName, controllerModule.module, 'perRequest');
-
-                    var metaInstance = iocContainer.resolve(controllerName);
-                    controllerModule.metaInstance = metaInstance;
-
+                    
+                    console.log(controllerModule);
+                    
                     extendController(controllerModule.moduleName, controllerModule.module);
 
                     var actionsHash = self.routeIndex.controllersActionsRoutes[controllerName];
+                    console.log(actionsHash);
                     for(var action in actionsHash){
-                        if(actionsHash.hasOwnProperty(action) && typeof(controllerModule.metaInstance[action]) === 'function'){
+                        console.log('logging proto' + action); 
+                        console.log(controllerModule.module.prototype);                  
+                        console.log(controllerModule.module.prototype[action]);           
+                        if(actionsHash.hasOwnProperty(action) && typeof(controllerModule.module.prototype[action]) === 'function'){
+                            console.log('************ in extend');
                             extendAction(controllerModule.module, action);
 
                             var routesArray = actionsHash[action];
@@ -303,6 +306,8 @@ let ApplicationFactory = function(
                             }
                         }
                     }
+
+                    iocContainer.register(controllerName, controllerModule.module, 'perRequest');
                 }
             }
 
@@ -612,7 +617,7 @@ let ApplicationFactory = function(
         routeIndex.controllersActionsRoutes[controllerModule.moduleName][method] = [route];
     }
 
-    function extendController(controllerModuleName, controllerModule) {
+    function extendController(controllerModuleName, controllerModule) {                
         if (isEmpty(controllerModule.$type)) {
             controllerModule.$type = self.mvcxConfig.controllerType;
         }
@@ -654,7 +659,7 @@ let ApplicationFactory = function(
             return new self.responseTypes.Response();
         }
 
-        controllerModule.prototype.mvcx = extensions;
+        controllerModule.prototype.mvcx = extensions;        
     }
 
     function extendAction(controllerModule, actionName) {
