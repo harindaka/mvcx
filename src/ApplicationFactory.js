@@ -1,7 +1,14 @@
 module.exports = function(
-    options
+    options,
+    onCompose
 ) {
     var self = this;
+
+    this.mvcxConfig = null;
+    this.appConfig = mergeConfig(options.configuration);
+    this.mvcxConfig = self.appConfig.mvcx;
+
+    onCompose(self.mvcxConfig.hooks.ioc);
     
     this.q = require('q');
     this.lazyjs = require('lazy.js');
@@ -17,11 +24,7 @@ module.exports = function(
         StreamResponse: require('./StreamResponse'),
         ViewResponse: require('./ViewResponse'),
         Response: require('./Response')
-    }
-
-    this.mvcxConfig = null;
-    this.appConfig = mergeConfig(options.configuration);
-    this.mvcxConfig = self.appConfig.mvcx;
+    }    
 
     if (typeof(options) !== 'undefined' && options !== null) {
         if (options.express) {
@@ -167,8 +170,8 @@ module.exports = function(
         }
     }
 
-    function initialize() {
-        self.logger = initializeLogging();
+    function initialize(onCompose) {
+        self.logger = initializeLogging();       
 
         //Add any data / helpers to be utilized within ejs templates to be placed in express.locals.mvcx
         self.express.locals.mvcx = {};

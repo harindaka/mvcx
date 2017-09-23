@@ -14,17 +14,20 @@ module.exports = (function() {
     }
     
     let mvcx = require('../src/index');
-    let applicationFactory = new mvcx.ApplicationFactory(options);
+    let applicationFactory = new mvcx.ApplicationFactory(options, (container) => {
+        container.register('fs', { dep: require('fs') }, 'singleton');
+    });
+    
     applicationFactory.create((error, app) => {
         if (error) {
-            console.log('Application composition failed due to error: ' + error.message);
+            console.log('Failed to create mvcx application due to error: ' + error.message);
             console.log(error);
             process.exit();
         }        
         
         app.logger.info('Registering application dependencies...');
         container = app.container;
-        container.register('fs', { dep: require('fs') }, 'singleton');    
+            
         container.register('config', { dep: app.config }, 'singleton');
         container.register('logger', { dep: app.logger }, 'singleton');
 

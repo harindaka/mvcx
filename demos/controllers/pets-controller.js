@@ -1,14 +1,16 @@
+var self = null;
+
 let controller = function(
   fs
 ){
-  var self = this;  
+  self = this;  
 
   //this.fs = fs.dep;
 };
 
 controller.prototype.get = function(model){
   
-  return this.mvcx.view('index', {
+  return self.mvcx.view('index', {
     title: 'My Pets',
     pets: [
       { petId: 1, name: 'Doge', age: 5 },
