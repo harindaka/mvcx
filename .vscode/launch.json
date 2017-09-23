@@ -8,13 +8,8 @@
             "type": "node",
             "request": "launch",
             "name": "Debug",
-            "program": "${workspaceRoot}/demos/server.js"
-        },
-        {
-            "type": "node",
-            "request": "launch",
-            "name": "Launch Program",
-            "program": "${workspaceRoot}\\src\\index.js"
+            "program": "${workspaceRoot}/demos/server.js",
+            "console": "integratedTerminal"
         }
     ]
 }
