@@ -15,7 +15,7 @@ module.exports = (function() {
     
     let mvcx = require('../src/index');
     let applicationFactory = new mvcx.ApplicationFactory(options, (container) => {
-        container.register('fs', { dep: require('fs') }, 'singleton');
+        container.register('fs', require('fs'), 'singleton');
     });
     
     applicationFactory.create((error, app) => {

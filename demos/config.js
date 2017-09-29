@@ -6,16 +6,16 @@ module.exports = {
     clusteringEnabled: false,
 
     assets: {
-      '/assets/images/ocean-ship.jpg': './tests/assets/images/ocean-ship.jpg',
+      '/assets/images/ocean-ship': './demos/assets/images/ocean-ship.jpg',
 
-      '/assets/jquery/jquery.js': './tests/assets/jquery/jquery.js',
+      '/assets/jquery/jquery': './demos/assets/jquery/jquery.js',
 
       '/assets/utils': {
         browserify: {
           modules: [
             'lazy.js', //This is a dependant npm package for the below modules
             {
-              './tests/assets/utils/sum-util.js': { run: false, expose: 'utils.sum-util' }
+              './demos/assets/utils/sum-util.js': { run: false, expose: 'utils.sum-util' }
               //More modules here
             }
           ],

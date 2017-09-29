@@ -2,21 +2,21 @@ module.exports = function(
     options,
     onCompose
 ) {
-    var self = this;
+    const self = this;
 
-    this.mvcxConfig = null;
-    this.appConfig = mergeConfig(options.configuration);
-    this.mvcxConfig = self.appConfig.mvcx;
+    this._mvcxConfig = null;
+    this._appConfig = mergeConfig(options.configuration);
+    this._mvcxConfig = self._appConfig.mvcx;
 
-    onCompose(self.mvcxConfig.hooks.ioc);
+    onCompose(self._mvcxConfig.hooks.ioc);
     
-    this.q = require('q');
-    this.lazyjs = require('lazy.js');
-    this.express = null;
-    this.logger = null;
-    this.routeIndex = null;
-    this.isInitializationSuccessful = false;
-    this.responseTypes = {
+    this._q = require('q');
+    this._lazyjs = require('lazy.js');
+    this._express = null;
+    this._logger = null;
+    this._routeIndex = null;
+    this._isInitializationSuccessful = false;
+    this._responseTypes = {
         VoidResponse: require('./VoidResponse'),
         DownloadResponse: require('./DownloadResponse'),
         FileResponse: require('./FileResponse'),
@@ -28,31 +28,31 @@ module.exports = function(
 
     if (typeof(options) !== 'undefined' && options !== null) {
         if (options.express) {
-            this.express = options.express;
+            this._express = options.express;
         }
     }
 
-    if (this.express === null) {
-        var express = require('express');
-        this.express = express();
+    if (this._express === null) {
+        let express = require('express');
+        this._express = express();
     }
 
     this.create = function (onCompleted) {
-        var cluster = null;
-        self.q.Promise(function (resolve, reject, notify) {
+        let cluster = null;
+        self._q.Promise(function (resolve, reject, notify) {
             try {
                 console.log('info: [mvcx] Initializing...');
 
-                if (self.mvcxConfig.clusteringEnabled) {
+                if (self._mvcxConfig.clusteringEnabled) {
                     cluster = require('cluster');
-                    var numCPUs = require('os').cpus().length;
-                    var appConfig = null;
+                    let numCPUs = require('os').cpus().length;
+                    let appConfig = null;
 
                     if (cluster.isMaster) {
                         console.log('info: [mvcx] Clustering for ' + numCPUs + ' CPU cores...');
 
                         // Fork workers.
-                        for (var i = 0; i < numCPUs; i++) {
+                        for (let i = 0; i < numCPUs; i++) {
                             console.log('info: [mvcx] Spawning worker ' + (i + 1) + '...');
                             cluster.fork();
                         }
@@ -72,11 +72,12 @@ module.exports = function(
                 }
 
                 let newApp = {
-                    express: self.express,
-                    config: self.appConfig,
-                    logger: self.logger,
-                    container: self.mvcxConfig.hooks.ioc,
+                    express: self._express,
+                    config: self._appConfig,
+                    logger: self._logger,
+                    container: self._mvcxConfig.hooks.ioc,
                     createHttp: createHttp,
+                    createHttps: createHttps,
                     createSocketIO: createSocketIO
                 };
 
@@ -87,13 +88,13 @@ module.exports = function(
             }
         }).then(function (result) {
             if (cluster === null || !cluster.isMaster) {
-                self.logger.info('[mvcx] Initialization completed.');
+                self._logger.info('[mvcx] Initialization completed.');
                 onCompleted(null, result);
             }
         }).catch(function (e) {
-            var failureMessage = '[mvcx] Intialization failed.';
-            if (self.logger != null) {
-                self.logger.error(failureMessage);
+            let failureMessage = '[mvcx] Intialization failed.';
+            if (self._logger != null) {
+                self._logger.error(failureMessage);
             }
             else {
                 console.log(failureMessage);
@@ -103,33 +104,33 @@ module.exports = function(
     };
 
     function createHttp (options) {
-        if (!self.isInitializationSuccessful) {
+        if (!self._isInitializationSuccessful) {
             throw new Error('[mvcx] Unable create http server when mvcx has not been initialized successfully.');
         }
 
-        self.logger.info('[mvcx] Creating http server...');
+        self._logger.info('[mvcx] Creating http server...');
 
-        var http = require('http');
-        var server = http.createServer(self.express);
+        let http = require('http');
+        let server = http.createServer(self._express);
 
-        self.logger.info('[mvcx] Http server created.');
+        self._logger.info('[mvcx] Http server created.');
 
         createServerCore(server);
 
         return server;
     };
 
-    this.createHttps = function (options) {
-        if (!self.isInitializationSuccessful) {
+    function createHttps(options) {
+        if (!self._isInitializationSuccessful) {
             throw new Error('[mvcx] Unable create https server when mvcx has not been initialized successfully.');
         }
 
-        self.logger.info('[mvcx] Creating https server...');
+        self._logger.info('[mvcx] Creating https server...');
 
-        var https = require('https');
-        var server = https.createServer(options, self.express);
+        let https = require('https');
+        let server = https.createServer(options, self._express);
 
-        self.logger.info('[mvcx] Https server created.');
+        self._logger.info('[mvcx] Https server created.');
 
         createServerCore(server);
 
@@ -137,24 +138,24 @@ module.exports = function(
     };
 
     function createSocketIO(server) {
-        if (!self.isInitializationSuccessful) {
+        if (!self._isInitializationSuccessful) {
             throw new Error('[mvcx] Unable create web socket server when mvcx has not been initialized successfully.');
         }
 
-        self.logger.info('[mvcx] Creating web socket (socket.io) server...');
+        self._logger.info('[mvcx] Creating web socket (socket.io) server...');
 
-        var socketio = require('socket.io');
+        let socketio = require('socket.io');
         return socketio(server);
 
-        self.logger.info('[mvcx] Web socket server created.');
+        self._logger.info('[mvcx] Web socket server created.');
     }
 
     function createServerCore(server) {
         server.on('connection', function (socket) {
-            if (self.mvcxConfig.keepAliveTimeoutSeconds > 0) {
+            if (self._mvcxConfig.keepAliveTimeoutSeconds > 0) {
                 //logger.debug('Connection opened. Setting keep alive timeout to %s seconds', config.keepAliveTimeoutSeconds);
                 socket.setKeepAlive(true);
-                socket.setTimeout(self.mvcxConfig.keepAliveTimeoutSeconds * 1000, function () {
+                socket.setTimeout(self._mvcxConfig.keepAliveTimeoutSeconds * 1000, function () {
                     //logger.debug('Connection closed after exceeding keep alive timeout.');
                 });
             }
@@ -163,18 +164,18 @@ module.exports = function(
             }
         });
 
-        if (self.mvcxConfig.keepAliveTimeoutSeconds > 0) {
-            self.logger.info('[mvcx] Server connection keep-alive timeout set to %s seconds.', self.mvcxConfig.keepAliveTimeoutSeconds);
+        if (self._mvcxConfig.keepAliveTimeoutSeconds > 0) {
+            self._logger.info('[mvcx] Server connection keep-alive timeout set to %s seconds.', self._mvcxConfig.keepAliveTimeoutSeconds);
         } else {
-            self.logger.info('[mvcx] Server connection keep-alive is disabled.');
+            self._logger.info('[mvcx] Server connection keep-alive is disabled.');
         }
     }
 
     function initialize(onCompose) {
-        self.logger = initializeLogging();       
+        self._logger = initializeLogging();       
 
         //Add any data / helpers to be utilized within ejs templates to be placed in express.locals.mvcx
-        self.express.locals.mvcx = {};
+        self._express.locals.mvcx = {};
 
         initializeExpress();
 
@@ -184,40 +185,40 @@ module.exports = function(
 
         initializeTemplateHelpers();
 
-        self.isInitializationSuccessful = true;
+        self._isInitializationSuccessful = true;
     }
 
     function initializeAssets() {
-        self.express.locals.mvcx.assets = {};
-        if (!isEmpty(self.mvcxConfig.assets)) {
-            for (var route in self.mvcxConfig.assets) {
-                if (self.mvcxConfig.assets.hasOwnProperty(route)) {
-                    var assetConfig = self.mvcxConfig.assets[route];
-                    registerAsset(self.express, route, assetConfig);
+        self._express.locals.mvcx.assets = {};
+        if (!isEmpty(self._mvcxConfig.assets)) {
+            for (let route in self._mvcxConfig.assets) {
+                if (self._mvcxConfig.assets.hasOwnProperty(route)) {
+                    let assetConfig = self._mvcxConfig.assets[route];
+                    registerAsset(self._express, route, assetConfig);
                 }
             }
         }
     }
 
     function initializeTemplateHelpers() {
-        self.express.locals.mvcx.actionUrl = function (controller, action, routeParams) {
+        self._express.locals.mvcx.actionUrl = function (controller, action, routeParams) {
 
-            var actions = self.routeIndex.controllersActionsRoutes[controller];
+            let actions = self._routeIndex.controllersActionsRoutes[controller];
             if(isEmpty(actions)){
                 throw new Error("[mvcx] The specified controller '" + controller + "' does not exist." );
             }
 
-            var routesArray = actions[action];
+            let routesArray = actions[action];
             if(isEmpty(routesArray)){
                 throw new Error("[mvcx] The specified action '" + action + "' does not exist in controller '" + controller + "'." );
             }
 
-            var urls = [];
-            var UrlBuilder = require('url-assembler');
+            let urls = [];
+            let UrlBuilder = require('url-assembler');
 
-            var regexForUrlWithPathParams = null;
-            var route = null;
-            var builder = new UrlBuilder();
+            let regexForUrlWithPathParams = null;
+            let route = null;
+            let builder = new UrlBuilder();
             if(isEmpty(routeParams)){
                 builder = builder.template(routesArray[0].route);
             }
@@ -225,7 +226,7 @@ module.exports = function(
 
                 if (!isEmpty(routeParams.path) && Object.keys(routeParams.path).length > 0) {
                     regexForUrlWithPathParams = "^.*";
-                    for (var pathParam in routeParams.path) {
+                    for (let pathParam in routeParams.path) {
                         if (routeParams.path.hasOwnProperty(pathParam)) {
                             regexForUrlWithPathParams += "(?=.*\\/:" + pathParam + "(\\/|$))"
                         }
@@ -233,8 +234,8 @@ module.exports = function(
 
                     regexForUrlWithPathParams += ".*$";
 
-                    for (var i = 0; i < routesArray.length; i++) {
-                        var regex = new RegExp(regexForUrlWithPathParams, 'g');
+                    for (let i = 0; i < routesArray.length; i++) {
+                        let regex = new RegExp(regexForUrlWithPathParams, 'g');
                         if (regex.test(routesArray[i].route)) {
                             route = routesArray[i].route;
                             break;
@@ -262,37 +263,37 @@ module.exports = function(
     }
 
     function initializeRoutes() {
-        self.logger.info('[mvcx] Loading routes...');
+        self._logger.info('[mvcx] Loading routes...');
 
-        self.routeIndex = createRouteIndex();
+        self._routeIndex = createRouteIndex();
 
-        if (isEmpty(self.routeIndex.controllers) || Object.keys(self.routeIndex.controllers).length === 0) {
-            self.logger.info('[mvcx] No controllers were found.');
+        if (isEmpty(self._routeIndex.controllers) || Object.keys(self._routeIndex.controllers).length === 0) {
+            self._logger.info('[mvcx] No controllers were found.');
         }
         else {
-            self.logger.info('[mvcx] Found ' + Object.keys(self.routeIndex.controllers).length + ' controller(s).');
-            if (self.mvcxConfig.autoRoutesEnabled) {
-                self.logger.info('[mvcx] Automatic routing enabled.');
+            self._logger.info('[mvcx] Found ' + Object.keys(self._routeIndex.controllers).length + ' controller(s).');
+            if (self._mvcxConfig.autoRoutesEnabled) {
+                self._logger.info('[mvcx] Automatic routing enabled.');
             }
             else {
-                self.logger.info('[mvcx] Automatic routing disabled.');
+                self._logger.info('[mvcx] Automatic routing disabled.');
             }
 
-            var iocContainer = self.mvcxConfig.hooks.ioc;
+            let iocContainer = self._mvcxConfig.hooks.ioc;
 
-            for(var controllerName in self.routeIndex.controllersActionsRoutes){
-                if(self.routeIndex.controllersActionsRoutes.hasOwnProperty(controllerName)){
-                    var controllerModule = self.routeIndex.controllers[controllerName];
+            for(let controllerName in self._routeIndex.controllersActionsRoutes){
+                if(self._routeIndex.controllersActionsRoutes.hasOwnProperty(controllerName)){
+                    let controllerModule = self._routeIndex.controllers[controllerName];
                     
                     extendController(controllerModule.moduleName, controllerModule.module);
 
-                    var actionsHash = self.routeIndex.controllersActionsRoutes[controllerName];
-                    for(var action in actionsHash){
+                    let actionsHash = self._routeIndex.controllersActionsRoutes[controllerName];
+                    for(let action in actionsHash){
                         if(actionsHash.hasOwnProperty(action) && typeof(controllerModule.module.prototype[action]) === 'function'){
                             extendAction(controllerModule.module, action);
 
-                            var routesArray = actionsHash[action];
-                            for(var i = 0; i < routesArray.length; i++){
+                            let routesArray = actionsHash[action];
+                            for(let i = 0; i < routesArray.length; i++){
                                 registerControllerBasedRoute(routesArray[i], controllerModule.module.$type);
                             }
                         }
@@ -302,32 +303,32 @@ module.exports = function(
                 }
             }
 
-            for(var i=0; i < self.routeIndex.viewRoutes.length; i++){
-                var route = self.routeIndex.viewRoutes[i];
+            for(let i=0; i < self._routeIndex.viewRoutes.length; i++){
+                let route = self._routeIndex.viewRoutes[i];
                 registerViewBasedRoute(route.method, route.route, route.view);
             }
         }
 
-        self.logger.info('[mvcx] Loading routes completed.');
+        self._logger.info('[mvcx] Loading routes completed.');
     };
 
     function mergeConfig(configOptions) {
-        var environment;
-        var config;
+        let environment;
+        let config;
         console.log('info: [mvcx] Initializing configuration...');
 
-        var baseConfig = configOptions.base;
+        let baseConfig = configOptions.base;
         if (typeof(baseConfig) === 'undefined' || baseConfig == null) {
             baseConfig = {};
         }
 
-        var merge = require('merge');
+        let merge = require('merge');
 
         console.log('info: [mvcx] Checking current environment configuration indicator...');
 
         if (!isEmpty(configOptions.current)) {
             console.log('info: [mvcx] Loading configuration override for ' + configOptions.current + ' environment.');
-            var overrideConfig = configOptions.overrides[configOptions.current];
+            let overrideConfig = configOptions.overrides[configOptions.current];
             if (!(overrideConfig)) {
                 throw new Error('[mvcx] The ' + env + ' environment configuration override is missing.');
             }
@@ -340,20 +341,20 @@ module.exports = function(
             config = baseConfig;
         }
 
-        var overriddenMvcxConfig = config.mvcx;
+        let overriddenMvcxConfig = config.mvcx;
         if (isEmpty(overriddenMvcxConfig)) {
             overriddenMvcxConfig = {};
         }
 
         console.log('info: [mvcx] Merging mvcx default configuration with specified overrides from the application configuration...');
-        var path = require('path');
+        let path = require('path');
         config.mvcx = merge.recursive(true, require(path.join(__dirname, 'DefaultConfig')), overriddenMvcxConfig);
 
         if (!isEmpty(config.mvcx.assets) && !isEmpty(config.mvcx.assets.paths) && config.mvcx.assets.paths.length > 0) {
             console.log('info: [mvcx] Resolving asset paths...');
 
-            var assetPaths = [];
-            self.lazyjs(config.mvcx.assets.paths).each(function (assetPath) {
+            let assetPaths = [];
+            self._lazyjs(config.mvcx.assets.paths).each(function (assetPath) {
                 assetPaths.push(path.resolve(assetPath));
             });
             config.mvcx.assets.paths = assetPaths;
@@ -370,49 +371,49 @@ module.exports = function(
     }
 
     function initializeExpress() {
-        self.logger.info('[mvcx] Creating express app...');
-        var path = require('path');
-        var iocContainer = self.mvcxConfig.hooks.ioc;
-        self.express.locals.mvcx.config = self.appConfig;
+        self._logger.info('[mvcx] Creating express app...');
+        let path = require('path');
+        let iocContainer = self._mvcxConfig.hooks.ioc;
+        self._express.locals.mvcx.config = self._appConfig;
 
-        self.logger.info('[mvcx] Registering standard middleware...');
+        self._logger.info('[mvcx] Registering standard middleware...');
 
-        if (isEmpty(self.mvcxConfig.viewEngine)) {
-            self.logger.info('[mvcx] No view engine specified.');
+        if (isEmpty(self._mvcxConfig.viewEngine)) {
+            self._logger.info('[mvcx] No view engine specified.');
         }
         else {
-            self.logger.info('[mvcx] Registering view engine...');
-            self.express.set('view engine', self.mvcxConfig.viewEngine);
-            self.express.set('views', path.resolve(self.mvcxConfig.viewPath));
+            self._logger.info('[mvcx] Registering view engine...');
+            self._express.set('view engine', self._mvcxConfig.viewEngine);
+            self._express.set('views', path.resolve(self._mvcxConfig.viewPath));
         }
 
-        if (self.mvcxConfig.compressionEnabled) {
-            var compress = require('compression');
-            self.express.use(compress());
-            self.logger.info('[mvcx] Gzip compression is enabled.');
+        if (self._mvcxConfig.compressionEnabled) {
+            let compress = require('compression');
+            self._express.use(compress());
+            self._logger.info('[mvcx] Gzip compression is enabled.');
         }
         else {
-            self.logger.info('[mvcx] Gzip compression is disabled.');
+            self._logger.info('[mvcx] Gzip compression is disabled.');
         }
 
-        self.logger.info('[mvcx] Registering body parser with url encoding and json support...');
-        var bodyParser = require('body-parser');
-        self.express.use(bodyParser.urlencoded({extended: false}));
-        self.express.use(bodyParser.json({limit: (self.mvcxConfig.requestLimitKB) + "kb"}));
+        self._logger.info('[mvcx] Registering body parser with url encoding and json support...');
+        let bodyParser = require('body-parser');
+        self._express.use(bodyParser.urlencoded({extended: false}));
+        self._express.use(bodyParser.json({limit: (self._mvcxConfig.requestLimitKB) + "kb"}));
 
-        self.logger.info('[mvcx] Standard middleware registration completed.');
+        self._logger.info('[mvcx] Standard middleware registration completed.');
     }
 
     function initializeLogging() {
-        var logger;
+        let logger;
 
-        var winston = require('winston');
+        let winston = require('winston');
         winston.emitErrs = true;
 
-        var winstonTransports = [];
-        if (self.mvcxConfig.loggerAppenders && self.mvcxConfig.loggerAppenders.length > 0) {
-            for (var i = 0; i < self.mvcxConfig.loggerAppenders.length; i++) {
-                var appender = self.mvcxConfig.loggerAppenders[i];
+        let winstonTransports = [];
+        if (self._mvcxConfig.loggerAppenders && self._mvcxConfig.loggerAppenders.length > 0) {
+            for (let i = 0; i < self._mvcxConfig.loggerAppenders.length; i++) {
+                let appender = self._mvcxConfig.loggerAppenders[i];
                 winstonTransports.push(new winston.transports[appender.type](appender.options));
             }
         }
@@ -441,25 +442,25 @@ module.exports = function(
 
     function createRouteIndex() {
 
-        var routeIndex = {
+        let routeIndex = {
             controllers: {},
             controllersActionsRoutes: {},
             controllersMethodsRoutes: {},
             viewRoutes: []
         }
 
-        var ModuleLoader = require('./ModuleLoader');
-        var moduleLoader = new ModuleLoader();
-        var path = require('path');
+        let ModuleLoader = require('./ModuleLoader');
+        let moduleLoader = new ModuleLoader();
+        let path = require('path');
         
-        var allControllerModules = moduleLoader.load(path.resolve(self.mvcxConfig.controllerPath), self.mvcxConfig.controllerSuffix);
+        let allControllerModules = moduleLoader.load(path.resolve(self._mvcxConfig.controllerPath), self._mvcxConfig.controllerSuffix);
 
-        if (!isEmpty(self.mvcxConfig.routes)) {
-            for(var i=0; i < self.mvcxConfig.routes.length; i++){
-                var route = self.mvcxConfig.routes[i];
+        if (!isEmpty(self._mvcxConfig.routes)) {
+            for(let i=0; i < self._mvcxConfig.routes.length; i++){
+                let route = self._mvcxConfig.routes[i];
 
                 if (!isEmpty(route.controller)) {
-                    var controllerModule = allControllerModules[route.controller];
+                    let controllerModule = allControllerModules[route.controller];
                     if(isEmpty(controllerModule)){
                         throw new Error('[mvcx] The controller ' + route.controller + ' specified by route ' + route.route + ' was not found.')
                     }
@@ -467,12 +468,12 @@ module.exports = function(
                     routeIndex.controllers[controllerModule.moduleName] = controllerModule;
 
                     if(isEmpty(routeIndex.controllersActionsRoutes[route.controller])){
-                        var actions = {};
+                        let actions = {};
                         actions[route.action] = [route];
                         routeIndex.controllersActionsRoutes[route.controller] = actions;
                     }
                     else {
-                        var actions = routeIndex.controllersActionsRoutes[route.controller];
+                        let actions = routeIndex.controllersActionsRoutes[route.controller];
                         if (isEmpty(actions[route.action])) {
                             actions[route.action] = [route];
                         }
@@ -482,12 +483,12 @@ module.exports = function(
                     }
 
                     if (isEmpty(routeIndex.controllersMethodsRoutes[route.controller])) {
-                        var methods = {};
+                        let methods = {};
                         methods[route.method] = [route];
                         routeIndex.controllersMethodsRoutes[route.controller] = methods;
                     }
                     else {
-                        var methods = routeIndex.controllersMethodsRoutes[route.controller];
+                        let methods = routeIndex.controllersMethodsRoutes[route.controller];
                         if (isEmpty(methods[route.method])) {
                             methods[route.method] = [route];
                         }
@@ -505,18 +506,18 @@ module.exports = function(
             }
         }
 
-        if (self.mvcxConfig.autoRoutesEnabled) {
-            for(var controllerName in allControllerModules) {
+        if (self._mvcxConfig.autoRoutesEnabled) {
+            for(let controllerName in allControllerModules) {
                 if (allControllerModules.hasOwnProperty(controllerName)) {
-                    var controllerModuleForAutoRoute = allControllerModules[controllerName];
+                    let controllerModuleForAutoRoute = allControllerModules[controllerName];
 
-                    var routeForGetDefined = false;
-                    var routeForPutDefined = false;
-                    var routeForPostDefined = false;
-                    var routeForDeleteDefined = false;
-                    var routeForPatchDefined = false;
+                    let routeForGetDefined = false;
+                    let routeForPutDefined = false;
+                    let routeForPostDefined = false;
+                    let routeForDeleteDefined = false;
+                    let routeForPatchDefined = false;
                     if (!isEmpty(routeIndex.controllersMethodsRoutes[controllerName])) {
-                        var explicitlyDefinedRouteMethods = routeIndex.controllersMethodsRoutes[controllerName];
+                        let explicitlyDefinedRouteMethods = routeIndex.controllersMethodsRoutes[controllerName];
                         routeForGetDefined = !isEmpty(explicitlyDefinedRouteMethods['get']);
                         routeForPutDefined = !isEmpty(explicitlyDefinedRouteMethods['put']);
                         routeForPostDefined = !isEmpty(explicitlyDefinedRouteMethods['post']);
@@ -524,7 +525,7 @@ module.exports = function(
                         routeForPatchDefined = !isEmpty(explicitlyDefinedRouteMethods['patch']);
                     }
 
-                    var autoRoute = null;
+                    let autoRoute = null;
                     if (!routeForGetDefined) {
                         indexAutoRoute(routeIndex, 'get', controllerModuleForAutoRoute);
                     }
@@ -548,32 +549,32 @@ module.exports = function(
             }
         }
 
-        for(var controllerName in routeIndex.controllersActionsRoutes){
+        for(let controllerName in routeIndex.controllersActionsRoutes){
             if(routeIndex.controllersActionsRoutes.hasOwnProperty(controllerName)){
-                var actions = routeIndex.controllersActionsRoutes[controllerName];
+                let actions = routeIndex.controllersActionsRoutes[controllerName];
 
-                for(var actionName in actions){
+                for(let actionName in actions){
                     if(actions.hasOwnProperty(actionName)){
-                        var routesArray = actions[actionName];
+                        let routesArray = actions[actionName];
 
-                        for(var i=0; i < routesArray.length; i++){
-                            var modelRoute = routesArray[i];
+                        for(let i=0; i < routesArray.length; i++){
+                            let modelRoute = routesArray[i];
                             modelRoute.requestModelSchema = null;
 
                             if(modelRoute.requestModel !== null) {
-                                var requestModuleName = null;
-                                var modelSpecified = false;
+                                let requestModuleName = null;
+                                let modelSpecified = false;
                                 if (!isEmpty(modelRoute.requestModel)) {
                                     modelSpecified = true;
                                     requestModuleName = modelRoute.requestModel;
                                 }
                                 else {
-                                    requestModuleName = actionName + self.mvcxConfig.requestModelSuffix;
+                                    requestModuleName = actionName + self._mvcxConfig.requestModelSuffix;
                                 }
 
-                                var path = require('path');
-                                var requestModelFilePath = path.join(path.resolve(self.mvcxConfig.modelPath), routeIndex.controllers[controllerName].modulePrefix, requestModuleName);
-                                var fs = require('fs');
+                                let path = require('path');
+                                let requestModelFilePath = path.join(path.resolve(self._mvcxConfig.modelPath), routeIndex.controllers[controllerName].modulePrefix, requestModuleName);
+                                let fs = require('fs');
                                 try {
                                     //fs.statSync(requestModelFilePath);
                                     modelRoute.requestModelSchema = require(requestModelFilePath);
@@ -594,7 +595,7 @@ module.exports = function(
     }
 
     function indexAutoRoute(routeIndex, method, controllerModule) {
-        var route = {
+        let route = {
             method: method,
             route: '/' + controllerModule.modulePrefix,
             controller: controllerModule.moduleName,
@@ -610,82 +611,82 @@ module.exports = function(
 
     function extendController(controllerModuleName, controllerModule) {                
         if (isEmpty(controllerModule.$type)) {
-            controllerModule.$type = self.mvcxConfig.controllerType;
+            controllerModule.$type = self._mvcxConfig.controllerType;
         }
 
-        var extensions = {};
-        var path = require('path');
+        let extensions = {};
+        let path = require('path');
 
         if (controllerModule.$type === 'mvc') {
             extensions.view = function (view, model) {
                 if (view.indexOf('/') == -1) {
-                    view = path.join(controllerModuleName.substring(0, controllerModuleName.length - self.mvcxConfig.controllerSuffix.length), view);
+                    view = path.join(controllerModuleName.substring(0, controllerModuleName.length - self._mvcxConfig.controllerSuffix.length), view);
                 }
 
-                return new self.responseTypes.ViewResponse(view, model);
+                return new self._responseTypes.ViewResponse(view, model);
             };
         }
 
         extensions.redirect = function (route) {
-            return new self.responseTypes.RedirectResponse(route);
+            return new self._responseTypes.RedirectResponse(route);
         }
 
         extensions.file = function (filePath, options) {
-            return new self.responseTypes.FileResponse(filePath, options);
+            return new self._responseTypes.FileResponse(filePath, options);
         }
 
         extensions.download = function (filePath, downloadedFilename) {
-            return new self.responseTypes.DownloadResponse(filePath, downloadedFilename);
+            return new self._responseTypes.DownloadResponse(filePath, downloadedFilename);
         }
 
         extensions.stream = function (stream) {
-            return new self.responseTypes.StreamResponse(stream);
+            return new self._responseTypes.StreamResponse(stream);
         }
 
         extensions.void = function () {
-            return new self.responseTypes.VoidResponse();
+            return new self._responseTypes.VoidResponse();
         }
 
         extensions.response = function () {
-            return new self.responseTypes.Response();
+            return new self._responseTypes.Response();
         }
 
         controllerModule.prototype.mvcx = extensions;        
     }
 
     function extendAction(controllerModule, actionName) {
-        var controllerAction = controllerModule.prototype[actionName];
+        let controllerAction = controllerModule.prototype[actionName];
         controllerModule.prototype[actionName] = function (model, req, res, next) {
             return controllerAction(model, req, res, next);
         }
     }
 
     function registerControllerBasedRoute(route, controllerType) {
-        var iocContainer = self.mvcxConfig.hooks.ioc;
+        let iocContainer = self._mvcxConfig.hooks.ioc;
 
-        var url = require('url');
-        var formattedRoute = url.resolve(url.resolve(url.resolve('/', self.mvcxConfig.baseUrlPrefix), '/'), route.route);
+        let url = require('url');
+        let formattedRoute = url.resolve(url.resolve(url.resolve('/', self._mvcxConfig.baseUrlPrefix), '/'), route.route);
 
-        self.logger.info('[mvcx] Registering controller action ' + route.controller + '.' + route.action + ' with route ' + formattedRoute + '...');
-        self.express[route.method](formattedRoute, function (req, res, next) {
-            var controller = iocContainer.resolve(route.controller);
+        self._logger.info('[mvcx] Registering controller action ' + route.controller + '.' + route.action + ' with route ' + formattedRoute + '...');
+        self._express[route.method](formattedRoute, function (req, res, next) {
+            let controller = iocContainer.resolve(route.controller);
             invokeControllerAction(route, controller, controllerType, req, res, next);
         });
     }
 
     function registerViewBasedRoute(method, route, view) {
-        self.logger.info('[mvcx] Registering view ' + view + ' with route ' + route + '...');
-        self.express[method](route, function (req, res, next) {
+        self._logger.info('[mvcx] Registering view ' + view + ' with route ' + route + '...');
+        self._express[method](route, function (req, res, next) {
             res.render(view);
         });
     }
 
     function invokeControllerAction(route, controller, controllerType, req, res, next) {
         try {
-            var model = createRequestModel(null, req);
+            let model = createRequestModel(null, req);
 
-            var result = controller[route.action](model, req, res, next);
-            if (!isEmpty(result) && self.q.isPromise(result)) {
+            let result = controller[route.action](model, req, res, next);
+            if (!isEmpty(result) && self._q.isPromise(result)) {
                 result.then(function (response) {
                     createSuccessResponse(controllerType, response, res);
                 }).catch(function (e) {
@@ -703,8 +704,8 @@ module.exports = function(
 
     function createRequestModel(modelSchema, req){
 
-        var merge = require('merge');
-        var model = merge.recursive(true, req.query, req.params);
+        let merge = require('merge');
+        let model = merge.recursive(true, req.query, req.params);
         return merge.recursive(true, model, req.body);
     }
 
@@ -713,10 +714,10 @@ module.exports = function(
             createErrorResponse(controllerType, new Error('[mvcx] Controller action did not return a response.'), res);
         }
         else {
-            if (response == null || response instanceof self.responseTypes.VoidResponse) {
+            if (response == null || response instanceof self._responseTypes.VoidResponse) {
                 res.status(200);
             }
-            else if (response instanceof self.responseTypes.ViewResponse) {
+            else if (response instanceof self._responseTypes.ViewResponse) {
                 if (response.model == null) {
                     res.render(response.view);
                 }
@@ -724,7 +725,7 @@ module.exports = function(
                     res.render(response.view, response.model);
                 }
             }
-            else if (response instanceof self.responseTypes.DownloadResponse) {
+            else if (response instanceof self._responseTypes.DownloadResponse) {
                 if (response.downloadedFilename == null) {
                     res.download(response.filePath);
                 }
@@ -732,7 +733,7 @@ module.exports = function(
                     res.download(response.filePath, response.downloadedFilename);
                 }
             }
-            else if (response instanceof self.responseTypes.FileResponse) {
+            else if (response instanceof self._responseTypes.FileResponse) {
                 if (response.options == null) {
                     res.sendFile(response.filePath);
                 }
@@ -740,7 +741,7 @@ module.exports = function(
                     res.sendFile(response.filePath, response.options)
                 }
             }
-            else if (response instanceof self.responseTypes.RedirectResponse) {
+            else if (response instanceof self._responseTypes.RedirectResponse) {
                 if (response.status == null) {
                     res.redirect(response.route);
                 }
@@ -748,11 +749,11 @@ module.exports = function(
                     res.redirect(response.status, response.route);
                 }
             }
-            else if (response instanceof self.responseTypes.StreamResponse) {
+            else if (response instanceof self._responseTypes.StreamResponse) {
                 res.setHeader("content-type", response.contentType);
                 res.stream.pipe(res);
             }
-            else if (response instanceof self.responseTypes.Response) {
+            else if (response instanceof self._responseTypes.Response) {
                 response.handler(res);
             }
             else {
@@ -762,26 +763,26 @@ module.exports = function(
     }
 
     function createErrorResponse(controllerType, e, res) {
-        var errorHandlerHook = self.mvcxConfig.hooks.errorHandlers[controllerType];
+        let errorHandlerHook = self._mvcxConfig.hooks.errorHandlers[controllerType];
 
         if (isEmpty(errorHandlerHook)) {
             throw new Error('[mvcx] No error handler specified for controller type ' + controllerType + '.');
         }
 
-        var hookOptions = {
+        let hookOptions = {
             response: res,
             error: e,
-            includeErrorStackInResponse: self.mvcxConfig.includeErrorStackInResponse
+            includeErrorStackInResponse: self._mvcxConfig.includeErrorStackInResponse
         };
-        errorHandlerHook.createResponse(self.appConfig, hookOptions);
+        errorHandlerHook.createResponse(self._appConfig, hookOptions);
     }
 
     function registerAsset(express, route, assetConfig) {
-        var fingerprintQueryKey = '__fingerprint';
-        var rdType = typeof(assetConfig);
+        let fingerprintQueryKey = '__fingerprint';
+        let rdType = typeof(assetConfig);
         if (rdType === 'string') {
-            var path = require('path');
-            var assetFile = path.resolve(assetConfig);
+            let path = require('path');
+            let assetFile = path.resolve(assetConfig);
             fingerprintAsset(express, route, [assetFile], fingerprintQueryKey);
             express.get(route, function (req, res) {
                 res.sendFile(assetFile);
@@ -790,13 +791,13 @@ module.exports = function(
         else if (assetConfig !== null && rdType === 'object') {
 
             if (typeof(assetConfig['browserify']) !== 'undefined' && assetConfig['browserify'] !== null) {
-                var browserifyConfig = assetConfig['browserify'];
-                var browserifyModules = browserifyConfig['modules'];
+                let browserifyConfig = assetConfig['browserify'];
+                let browserifyModules = browserifyConfig['modules'];
                 if (typeof(browserifyModules) !== 'undefined' && browserifyModules !== null) {
-                    var browserify = require('browserify-middleware');
+                    let browserify = require('browserify-middleware');
                     browserify.settings.mode = 'production';
 
-                    var browserifyOptions = browserifyConfig['options'];
+                    let browserifyOptions = browserifyConfig['options'];
                     if (typeof(browserifyOptions) === 'undefined' || browserifyOptions === null) {
                         browserifyOptions = {
                             minify: false,
@@ -835,17 +836,17 @@ module.exports = function(
     }
 
     function fingerprintAsset(express, route, filesOrData, query) {
-        var Uri = require('urijs');
-        var url = new Uri(route);
+        let Uri = require('urijs');
+        let url = new Uri(route);
 
-        var fingerprint = '';
+        let fingerprint = '';
         if (typeof(filesOrData) !== 'undefined' && filesOrData !== null) {
             if (Array.isArray(filesOrData) && filesOrData.length > 0) {
-                var hashFiles = require('hash-files');
+                let hashFiles = require('hash-files');
                 fingerprint = hashFiles.sync({files: filesOrData, algorithm: 'md5'});
             }
             else if (typeof(filesOrData) === 'string' && filesOrData.length > 0) {
-                var crypto = require('crypto');
+                let crypto = require('crypto');
                 fingerprint = crypto.createHash('md5').update(filesOrData).digest('hex');
             }
             else {
