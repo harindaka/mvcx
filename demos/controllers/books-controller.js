@@ -18,7 +18,9 @@ controller.prototype.create = function(model){
 }
 
 module.exports = controller;
-module.exports.$type = 'api'
+module.exports.$mvcx = { 
+  controllerType: 'api'
+};
 module.exports.$inject = [
   'fs'
 ];

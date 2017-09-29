@@ -294,7 +294,7 @@ module.exports = function(
 
                             let routesArray = actionsHash[action];
                             for(let i = 0; i < routesArray.length; i++){
-                                registerControllerBasedRoute(routesArray[i], controllerModule.module.$type);
+                                registerControllerBasedRoute(routesArray[i], controllerModule.module.$mvcx.controllerType);
                             }
                         }
                     }
@@ -610,14 +610,18 @@ module.exports = function(
     }
 
     function extendController(controllerModuleName, controllerModule) {                
-        if (isEmpty(controllerModule.$type)) {
-            controllerModule.$type = self._mvcxConfig.controllerType;
+        if (isEmpty(controllerModule.$mvcx)) {
+            controllerModule.$mvcx = {};
+        }
+
+        if (isEmpty(controllerModule.$mvcx.controllerType)) {
+            controllerModule.$mvcx.controllerType = self._mvcxConfig.controllerType;
         }
 
         let extensions = {};
         let path = require('path');
 
-        if (controllerModule.$type === 'mvc') {
+        if (controllerModule.$mvcx.controllerType === 'mvc') {
             extensions.view = function (view, model) {
                 if (view.indexOf('/') == -1) {
                     view = path.join(controllerModuleName.substring(0, controllerModuleName.length - self._mvcxConfig.controllerSuffix.length), view);
@@ -625,6 +629,9 @@ module.exports = function(
 
                 return new self._responseTypes.ViewResponse(view, model);
             };
+        }
+        else if(controllerModule.$mvcx.controllerType !== 'api'){
+            throw new Error('[mvcx] Invalid controller type ' + controllerModule.$mvcx.controllerType + ' found for controller ' + controllerModuleName + '.');
         }
 
         extensions.redirect = function (route) {
