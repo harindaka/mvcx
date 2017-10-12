@@ -677,6 +677,10 @@ module.exports = function(
             controllerModule.$mvcx.actions[actionName].request.createModel = createRequestModel;
         }
 
+        if(isEmpty(controllerModule.$mvcx.actions[actionName].request.validate)){
+            controllerModule.$mvcx.actions[actionName].request.validate = validateRequest;
+        }
+
         let controllerAction = controllerModule.prototype[actionName];
         controllerModule.prototype[actionName] = function (model, req, res, next) {
             return controllerAction(model, req, res, next);
@@ -705,6 +709,8 @@ module.exports = function(
 
     function invokeControllerAction(route, controller, controllerModule, req, res, next) {
         try {
+            //Todo: call controllerModule.$mvcx.actions[route.action].request.validate()
+            
             controllerModule.$mvcx.actions[route.action].request.createModel(req, function(modelCreationError, model){
                 if(modelCreationError){
                     createErrorResponse(controllerModule.$mvcx.controllerType, modelCreationError, res);
@@ -727,6 +733,10 @@ module.exports = function(
         catch (e) {
             createErrorResponse(controllerModule.$mvcx.controllerType, e, res);
         }
+    }
+
+    function validateRequest(req, onCompleted){
+        
     }
 
     function createRequestModel(req, onCompleted, requestModelMergeOrder){
