@@ -3,15 +3,15 @@ module.exports = function(
     onCompose
 ) {
     const self = this;
-
-    this._mvcxConfig = null;
+    this._q = require('q');
+    this._lazyjs = require('lazy.js');
+    this._merge = require('merge');
+    
     this._appConfig = mergeConfig(options.configuration);
     this._mvcxConfig = self._appConfig.mvcx;
 
     onCompose(self._mvcxConfig.hooks.ioc);
-    
-    this._q = require('q');
-    this._lazyjs = require('lazy.js');
+        
     this._express = null;
     this._logger = null;
     this._routeIndex = null;
@@ -294,7 +294,7 @@ module.exports = function(
 
                             let routesArray = actionsHash[action];
                             for(let i = 0; i < routesArray.length; i++){
-                                registerControllerBasedRoute(routesArray[i], controllerModule.module.$mvcx.controllerType);
+                                registerControllerBasedRoute(routesArray[i], controllerModule.module);
                             }
                         }
                     }
@@ -322,8 +322,6 @@ module.exports = function(
             baseConfig = {};
         }
 
-        let merge = require('merge');
-
         console.log('info: [mvcx] Checking current environment configuration indicator...');
 
         if (!isEmpty(configOptions.current)) {
@@ -334,7 +332,7 @@ module.exports = function(
             }
 
             console.log('info: [mvcx] Merging configuration override for ' + configOptions.current + ' environment...');
-            config = merge.recursive(true, baseConfig, overrideConfig);
+            config = self._merge.recursive(true, baseConfig, overrideConfig);
         }
         else {
             console.log('info: [mvcx] No environment indicator found. Continuing with the base configuration...');
@@ -348,7 +346,7 @@ module.exports = function(
 
         console.log('info: [mvcx] Merging mvcx default configuration with specified overrides from the application configuration...');
         let path = require('path');
-        config.mvcx = merge.recursive(true, require(path.join(__dirname, 'DefaultConfig')), overriddenMvcxConfig);
+        config.mvcx = self._merge.recursive(true, require(path.join(__dirname, 'DefaultConfig')), overriddenMvcxConfig);
 
         if (!isEmpty(config.mvcx.assets) && !isEmpty(config.mvcx.assets.paths) && config.mvcx.assets.paths.length > 0) {
             console.log('info: [mvcx] Resolving asset paths...');
@@ -611,11 +609,10 @@ module.exports = function(
 
     function extendController(controllerModuleName, controllerModule) {                
         if (isEmpty(controllerModule.$mvcx)) {
-            controllerModule.$mvcx = {};
+            controllerModule.$mvcx = self._mvcxConfig;
         }
-
-        if (isEmpty(controllerModule.$mvcx.controllerType)) {
-            controllerModule.$mvcx.controllerType = self._mvcxConfig.controllerType;
+        else{
+            controllerModule.$mvcx = self._merge.recursive(true, self._mvcxConfig, controllerModule.$mvcx);
         }
 
         let extensions = {};
@@ -668,7 +665,7 @@ module.exports = function(
         }
     }
 
-    function registerControllerBasedRoute(route, controllerType) {
+    function registerControllerBasedRoute(route, controllerModule) {
         let iocContainer = self._mvcxConfig.hooks.ioc;
 
         let url = require('url');
@@ -677,7 +674,7 @@ module.exports = function(
         self._logger.info('[mvcx] Registering controller action ' + route.controller + '.' + route.action + ' with route ' + formattedRoute + '...');
         self._express[route.method](formattedRoute, function (req, res, next) {
             let controller = iocContainer.resolve(route.controller);
-            invokeControllerAction(route, controller, controllerType, req, res, next);
+            invokeControllerAction(route, controller, controllerModule, req, res, next);
         });
     }
 
@@ -688,32 +685,34 @@ module.exports = function(
         });
     }
 
-    function invokeControllerAction(route, controller, controllerType, req, res, next) {
+    function invokeControllerAction(route, controller, controllerModule, req, res, next) {
         try {
-            let model = createRequestModel(null, req);
+            let model = createRequestModel(null, req, controllerModule);
 
             let result = controller[route.action](model, req, res, next);
             if (!isEmpty(result) && self._q.isPromise(result)) {
                 result.then(function (response) {
-                    createSuccessResponse(controllerType, response, res);
+                    createSuccessResponse(controllerModule.$mvcx.controllerType, response, res);
                 }).catch(function (e) {
-                    createErrorResponse(controllerType, e, res);
+                    createErrorResponse(controllerModule.$mvcx.controllerType, e, res);
                 });
             }
             else {
-                createSuccessResponse(controllerType, result, res);
+                createSuccessResponse(controllerModule.$mvcx.controllerType, result, res);
             }
         }
         catch (e) {
-            createErrorResponse(controllerType, e, res);
+            createErrorResponse(controllerModule.$mvcx.controllerType, e, res);
         }
     }
 
-    function createRequestModel(modelSchema, req){
-
-        let merge = require('merge');
-        let model = merge.recursive(true, req.query, req.params);
-        return merge.recursive(true, model, req.body);
+    function createRequestModel(modelSchema, req, controllerModule){
+        let requestModel = {};
+        for(let i=0; i < controllerModule.$mvcx.requestModelMergeOrder.length; i++){
+            requestModel = self._merge.recursive(true, requestModel, req[self._mvcxConfig.requestModelMergeOrder[i]]);
+        }
+        
+        return requestModel;
     }
 
     function createSuccessResponse(controllerType, response, res) {

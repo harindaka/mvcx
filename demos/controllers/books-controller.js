@@ -19,7 +19,10 @@ controller.prototype.create = function(model){
 
 module.exports = controller;
 module.exports.$mvcx = { 
-  controllerType: 'api'
+  controllerType: 'api',
+  requestModelMergeOrder: [
+    "headers", "query", "params", "body"
+  ]
 };
 module.exports.$inject = [
   'fs'

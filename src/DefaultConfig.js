@@ -17,6 +17,9 @@ module.exports = {
     requestModelSuffix: '-request',
     baseUrlPrefix: '',
     routes: null,
+    requestModelMergeOrder: [
+        'query', 'params', 'body'
+    ],
 
     loggerAppenders: [
         {
