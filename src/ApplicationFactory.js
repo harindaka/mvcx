@@ -615,6 +615,10 @@ module.exports = function(
             controllerModule.$mvcx = self._merge.recursive(true, self._mvcxConfig, controllerModule.$mvcx);
         }
 
+        if(isEmpty(controllerModule.$mvcx.actions)){
+            controllerModule.$mvcx.actions = {};
+        }
+        
         let extensions = {};
         let path = require('path');
 
@@ -659,6 +663,20 @@ module.exports = function(
     }
 
     function extendAction(controllerModule, actionName) {
+        if(isEmpty(controllerModule.$mvcx.actions[actionName])){
+            controllerModule.$mvcx.actions[actionName] = {
+                request: {}
+            };
+        }
+
+        if(isEmpty(controllerModule.$mvcx.actions[actionName].request)){
+            controllerModule.$mvcx.actions[actionName].request = {};
+        }
+
+        if(isEmpty(controllerModule.$mvcx.actions[actionName].request.createModel)){
+            controllerModule.$mvcx.actions[actionName].request.createModel = createRequestModel;
+        }
+
         let controllerAction = controllerModule.prototype[actionName];
         controllerModule.prototype[actionName] = function (model, req, res, next) {
             return controllerAction(model, req, res, next);
@@ -687,32 +705,42 @@ module.exports = function(
 
     function invokeControllerAction(route, controller, controllerModule, req, res, next) {
         try {
-            let model = createRequestModel(null, req, controllerModule);
-
-            let result = controller[route.action](model, req, res, next);
-            if (!isEmpty(result) && self._q.isPromise(result)) {
-                result.then(function (response) {
-                    createSuccessResponse(controllerModule.$mvcx.controllerType, response, res);
-                }).catch(function (e) {
-                    createErrorResponse(controllerModule.$mvcx.controllerType, e, res);
-                });
-            }
-            else {
-                createSuccessResponse(controllerModule.$mvcx.controllerType, result, res);
-            }
+            controllerModule.$mvcx.actions[route.action].request.createModel(req, function(modelCreationError, model){
+                if(modelCreationError){
+                    createErrorResponse(controllerModule.$mvcx.controllerType, modelCreationError, res);
+                }
+                else {
+                    let result = controller[route.action](model, req, res, next);
+                    if (!isEmpty(result) && self._q.isPromise(result)) {
+                        result.then(function (response) {
+                            createSuccessResponse(controllerModule.$mvcx.controllerType, response, res);
+                        }).catch(function (e) {
+                            createErrorResponse(controllerModule.$mvcx.controllerType, e, res);
+                        });
+                    }
+                    else {
+                        createSuccessResponse(controllerModule.$mvcx.controllerType, result, res);
+                    }
+                }
+            }, controllerModule.$mvcx.requestModelMergeOrder);            
         }
         catch (e) {
             createErrorResponse(controllerModule.$mvcx.controllerType, e, res);
         }
     }
 
-    function createRequestModel(modelSchema, req, controllerModule){
-        let requestModel = {};
-        for(let i=0; i < controllerModule.$mvcx.requestModelMergeOrder.length; i++){
-            requestModel = self._merge.recursive(true, requestModel, req[self._mvcxConfig.requestModelMergeOrder[i]]);
+    function createRequestModel(req, onCompleted, requestModelMergeOrder){
+        try{
+            let requestModel = {};
+            for(let i=0; i < requestModelMergeOrder.length; i++){
+                requestModel = self._merge.recursive(true, requestModel, req[requestModelMergeOrder[i]]);
+            }
+            
+            onCompleted(null, requestModel);
         }
-        
-        return requestModel;
+        catch(error){
+            onCompleted(error, null);
+        }
     }
 
     function createSuccessResponse(controllerType, response, res) {
