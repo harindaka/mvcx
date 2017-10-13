@@ -6,17 +6,17 @@ let controller = function(
   this.fs = fs.dep;  
 };
 
-controller.prototype.retrieve = function(model){
+controller.prototype.retrieve = function(model, respond){
   // return [
   //   { bookId: 1, name: 'Harry Potter' },
   //   { bookId: 2, name: 'Game of Thrones' }
   // ];
 
-  return model;
+  respond(null, model);
 };
 
-controller.prototype.create = function(model){
-  return model;
+controller.prototype.create = function(model, respond){
+  respond(null, model);
 }
 
 module.exports = controller;

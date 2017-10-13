@@ -708,35 +708,80 @@ module.exports = function(
     }
 
     function invokeControllerAction(route, controller, controllerModule, req, res, next) {
-        try {
-            //Todo: call controllerModule.$mvcx.actions[route.action].request.validate()
-            
-            controllerModule.$mvcx.actions[route.action].request.createModel(req, function(modelCreationError, model){
-                if(modelCreationError){
-                    createErrorResponse(controllerModule.$mvcx.controllerType, modelCreationError, res);
+        try {            
+            self._q.Promise(function(resolve, reject){
+                try{
+                    controllerModule.$mvcx.actions[route.action].request.validate(req, function(requestValidationError){
+                        try{
+                            if(requestValidationError){
+                                reject(requestValidationError);
+                            }
+                            else{
+                                resolve();
+                            }
+                        }
+                        catch(error){
+                            reject(error);
+                        }
+                    });
                 }
-                else {
-                    let result = controller[route.action](model, req, res, next);
-                    if (!isEmpty(result) && self._q.isPromise(result)) {
-                        result.then(function (response) {
-                            createSuccessResponse(controllerModule.$mvcx.controllerType, response, res);
-                        }).catch(function (e) {
-                            createErrorResponse(controllerModule.$mvcx.controllerType, e, res);
-                        });
-                    }
-                    else {
-                        createSuccessResponse(controllerModule.$mvcx.controllerType, result, res);
-                    }
+                catch(error){
+                    reject(error);
                 }
-            }, controllerModule.$mvcx.requestModelMergeOrder);            
+            }).then(function(){
+                return self._q.Promise(function(resolve, reject){
+                    try{
+                        controllerModule.$mvcx.actions[route.action].request.createModel(req, function(modelCreationError, model){
+                            try{
+                                if(modelCreationError){
+                                    reject(modelCreationError);
+                                }
+                                else{
+                                    resolve(model);
+                                }
+                            }
+                            catch(error){
+                                reject(error);
+                            }
+                        }, controllerModule.$mvcx.requestModelMergeOrder);
+                    }
+                    catch(error){
+                        reject(error);
+                    }
+                });
+            }).then(function(model){
+                return self._q.Promise(function(resolve, reject){
+                    try{
+                        controller[route.action](model, function(error, result){
+                            try{
+                                if(error){
+                                    reject(error);
+                                } else {
+                                    resolve(result);
+                                }
+                            } 
+                            catch(error){
+                                reject(error);
+                            } 
+                        }, req, res, next);
+                    }
+                    catch(error){
+                        reject(error);
+                    }
+                });                
+            }).then(function(result){
+                createSuccessResponse(controllerModule.$mvcx.controllerType, result, res);
+            }).catch(function(error){
+                createErrorResponse(controllerModule.$mvcx.controllerType, error, res);
+            }).done();           
         }
-        catch (e) {
-            createErrorResponse(controllerModule.$mvcx.controllerType, e, res);
+        catch (error) {
+            createErrorResponse(controllerModule.$mvcx.controllerType, error, res);
         }
     }
 
     function validateRequest(req, onCompleted){
-        
+        onCompleted(null);
     }
 
     function createRequestModel(req, onCompleted, requestModelMergeOrder){
