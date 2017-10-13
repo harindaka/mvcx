@@ -1,13 +1,18 @@
 module.exports = {
-    body: {
+    
+    headers: {
 
     },
 
-    path: {
+    params: {
 
     },
 
     query: {
 
+    },
+
+    body: {
+        
     }
 }

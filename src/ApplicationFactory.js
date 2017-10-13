@@ -6,12 +6,13 @@ module.exports = function(
     this._q = require('q');
     this._lazyjs = require('lazy.js');
     this._merge = require('merge');
-    
+    this._ajv = require('ajv');
+
     this._appConfig = mergeConfig(options.configuration);
     this._mvcxConfig = self._appConfig.mvcx;
 
     onCompose(self._mvcxConfig.hooks.ioc);
-        
+
     this._express = null;
     this._logger = null;
     this._routeIndex = null;
