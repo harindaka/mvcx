@@ -6,10 +6,11 @@ module.exports = function(
     this._q = require('q');
     this._lazyjs = require('lazy.js');
     this._merge = require('merge');
-    this._ajv = require('ajv');
+    let Ajv = require('ajv');
 
     this._appConfig = mergeConfig(options.configuration);
     this._mvcxConfig = self._appConfig.mvcx;
+    this._requestSchemaValidator = new Ajv(self._mvcxConfig.schemaValidation.request);
 
     onCompose(self._mvcxConfig.hooks.ioc);
 

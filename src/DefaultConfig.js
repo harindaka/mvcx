@@ -20,6 +20,14 @@ module.exports = {
     requestModelMergeOrder: [
         'query', 'params', 'body'
     ],
+    schemaValidation: {
+        request: {
+            //Ajv options http://epoberezkin.github.io/ajv/#options
+            allErrors: false,
+            format: 'fast',
+            formats: {}
+        }
+    },
 
     loggerAppenders: [
         {
