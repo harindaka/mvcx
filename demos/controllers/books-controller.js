@@ -28,6 +28,14 @@ module.exports.$mvcx = {
   actions: {
     retrieve: {
       request: {
+        validate: function(req, schemaValidate, onCompleted){
+          try{
+            onCompleted(null, null);
+          }
+          catch(error){
+            onCompleted(error, null);
+          }
+        },
         createModel: function(req, onCompleted){
           try{
             let model = {

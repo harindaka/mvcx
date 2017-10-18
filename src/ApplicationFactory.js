@@ -6,11 +6,11 @@ module.exports = function(
     this._q = require('q');
     this._lazyjs = require('lazy.js');
     this._merge = require('merge');
-    let Ajv = require('ajv');
-
+    
     this._appConfig = mergeConfig(options.configuration);
     this._mvcxConfig = self._appConfig.mvcx;
-    this._requestSchemaValidator = new Ajv(self._mvcxConfig.schemaValidation.request);
+    let Ajv = require('ajv');
+    this._ajv = new Ajv(self._mvcxConfig.schemaValidation.request);
 
     onCompose(self._mvcxConfig.hooks.ioc);
 
@@ -559,30 +559,46 @@ module.exports = function(
 
                         for(let i=0; i < routesArray.length; i++){
                             let modelRoute = routesArray[i];
-                            modelRoute.requestModelSchema = null;
+                            modelRoute.requestSchemaValidator = null;
 
-                            if(modelRoute.requestModel !== null) {
+                            if(modelRoute.requestSchema !== null) {
                                 let requestModuleName = null;
                                 let modelSpecified = false;
-                                if (!isEmpty(modelRoute.requestModel)) {
-                                    modelSpecified = true;
-                                    requestModuleName = modelRoute.requestModel;
+                                if (isEmpty(modelRoute.requestSchema)) {                                    
+                                    requestModuleName = actionName + self._mvcxConfig.requestSchemaSuffix;
                                 }
                                 else {
-                                    requestModuleName = actionName + self._mvcxConfig.requestModelSuffix;
+                                    requestModuleName = modelRoute.requestSchema;
+                                    modelSpecified = true;
                                 }
 
                                 let path = require('path');
-                                let requestModelFilePath = path.join(path.resolve(self._mvcxConfig.modelPath), routeIndex.controllers[controllerName].modulePrefix, requestModuleName);
+                                let requestSchemaFilePath = path.join(path.resolve(self._mvcxConfig.modelPath), routeIndex.controllers[controllerName].modulePrefix, requestModuleName);
                                 let fs = require('fs');
+                                let requestSchema = null;
                                 try {
-                                    //fs.statSync(requestModelFilePath);
-                                    modelRoute.requestModelSchema = require(requestModelFilePath);
+                                    requestSchema = require(requestSchemaFilePath);                                    
                                 }
-                                catch (e) {
+                                catch (error) {
                                     if (modelSpecified) {
-                                        throw new Error("[mvcx] The specified request model '" + modelRoute.requestModel + "' was not accessible at '" + requestModelFilePath + "'. Please check whether the file exists and is accessible.")
+                                        throw new Error("[mvcx] The request schema '" + modelRoute.requestSchema + "' for controller " + controllerName + " could not be loaded as expected from '" + requestSchemaFilePath + "'. Please check whether the file exists and is accessible.")
                                     }
+                                    else{
+                                        self._logger.info("[mvcx] No request schema found for action '" + actionName + "' of controller '" + controllerName + "'. No schema validator will be available.");
+                                    }
+                                }
+
+                                if(requestSchema){
+                                    self._logger.info("[mvcx] Compiling request schema file '" + requestSchemaFilePath + "'...");
+                                    try {                                    
+                                        modelRoute.requestSchemaValidator = self._ajv.compile(requestSchema);
+                                    }
+                                    catch (error) {
+                                        throw new Error("[mvcx] The request schema file '" + requestSchemaFilePath + "' failed compilation due to error: " + error.message);                                        
+                                    }
+                                }
+                                else{
+                                    modelRoute.requestSchemaValidator = null;
                                 }
                             }
                         }
@@ -713,7 +729,7 @@ module.exports = function(
         try {            
             self._q.Promise(function(resolve, reject){
                 try{
-                    controllerModule.$mvcx.actions[route.action].request.validate(req, function(requestValidationError){
+                    controllerModule.$mvcx.actions[route.action].request.validate(req, route.requestSchemaValidator, function(requestValidationError){
                         try{
                             if(requestValidationError){
                                 reject(requestValidationError);
@@ -782,8 +798,21 @@ module.exports = function(
         }
     }
 
-    function validateRequest(req, onCompleted){
-        onCompleted(null);
+    function validateRequest(req, schemaValidate, onCompleted){
+        try{
+            let validationErrors = null;
+            if(schemaValidate){
+                let requestIsValid = schemaValidate(req);
+                if(!requestIsValid){
+                    validationErrors = validate.errors
+                }
+            }
+
+            onCompleted(null, validationErrors);
+        }
+        catch(error){
+            onCompleted(error, null);
+        }
     }
 
     function createRequestModel(req, onCompleted, requestModelMergeOrder){
